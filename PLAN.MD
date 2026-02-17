@@ -1492,7 +1492,7 @@ Open `output/maps/europe_risk_map.html` in browser for visual inspection.
 
 ---
 
-### ⬜ Phase 1 — Project Scaffolding & Configuration _(Days 2–3)_
+### ✅ Phase 1 — Project Scaffolding & Configuration _(Days 2–3)_
 
 > **Goal**: Complete project directory structure, configuration files, and environment variables ready.
 
@@ -1511,7 +1511,7 @@ Open `output/maps/europe_risk_map.html` in browser for visual inspection.
 
 ---
 
-### ⬜ Phase 2 — Database Layer _(Days 3–5)_
+### ✅ Phase 2 — Database Layer _(Days 3–5)_
 
 > **Goal**: PostGIS database schema created, SQLAlchemy/GeoAlchemy2 ORM models working, connection pool established.
 
@@ -1792,8 +1792,8 @@ SELECT AVG(distance_to_site_km) FROM earthquake_events WHERE nearest_site_id IS 
 | Phase | Durum | Açıklama | Süre |
 |-------|-------|----------|------|
 | Phase 0 | ✅ | Environment Setup & Prerequisites | Days 1–2 |
-| Phase 1 | ⬜ | Project Scaffolding & Configuration | Days 2–3 |
-| Phase 2 | ⬜ | Database Layer (PostGIS + ORM) | Days 3–5 |
+| Phase 1 | ✅ | Project Scaffolding & Configuration | Days 2–3 |
+| Phase 2 | ✅ | Database Layer (PostGIS + ORM) | Days 3–5 |
 | Phase 3 | ⬜ | Core ETL: UNESCO Heritage Sites | Days 5–7 |
 | Phase 4 | ⬜ | ETL: Hazard & Environmental Data | Days 7–14 |
 | Phase 5 | ⬜ | CRS Transformation & Spatial Join | Days 14–16 |
