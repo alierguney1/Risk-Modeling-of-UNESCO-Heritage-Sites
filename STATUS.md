@@ -352,25 +352,103 @@ psql -U postgres -d unesco_risk -c "SELECT COUNT(*) FROM unesco_risk.flood_zones
 
 ---
 
-### ⬜ Faz 5 — CRS Dönüşümü ve Mekansal Birleştirme _(Beklemede)_
+### ✅ Faz 5 — CRS Dönüşümü ve Mekansal Birleştirme _(Tamamlandı)_
 
-**Durum**: BEKLEMEDE (Faz 4'e bağımlı)  
-**Tarih**: Gün 14-16
+**Durum**: TAMAMLANDI  
+**Tarih**: Gün 14-16  
+**Tamamlanma**: 17 Şubat 2026
 
-#### Tamamlanacak İşler:
-- [ ] `src/etl/spatial_join.py` oluştur
-- [ ] WGS84 → ETRS89/LAEA dönüşümü
-- [ ] Mekansal mesafe hesaplamaları
-- [ ] Buffer analizi (5km, 10km, 25km, 50km)
+#### Tamamlanan İşler:
+- [x] `src/etl/spatial_join.py` modülü oluşturuldu
+- [x] WGS84 → ETRS89/LAEA (EPSG:3035) dönüşümü implementasyonu
+- [x] Mekansal mesafe hesaplamaları (metre cinsinden doğru hesaplama)
+- [x] Buffer analizi (5km, 10km, 25km, 50km) concentric buffers
+- [x] `create_buffers()` fonksiyonu — Buffer zone oluşturma
+- [x] `join_urban_to_sites()` fonksiyonu — Kentsel özellikler için spatial join
+- [x] `join_hazards_to_sites()` fonksiyonu — Tehlikeler için nearest-neighbor join
+- [x] Database update fonksiyonları:
+  - `update_urban_features_distances()` — Kentsel özellikler
+  - `update_earthquake_distances()` — Deprem olayları
+  - `update_fire_distances()` — Yangın olayları
+  - `update_flood_distances()` — Sel bölgeleri
+- [x] CRS doğrulama fonksiyonu — Bilinen mesafeleri test eder
+- [x] CLI arayüzü (--dry-run, --quiet, --verbose)
+- [x] Birim testleri oluşturuldu (16 test, hepsi geçiyor)
+- [x] Dokümantasyon oluşturuldu (PHASE5_GUIDE.md, PHASE5_SUMMARY.md)
+
+#### Modül Özellikleri:
+- ✅ Doğru metrik mesafe hesaplamaları (EPSG:3035 kullanarak)
+- ✅ Batch processing (büyük veri setleri için)
+- ✅ Progress bars (tqdm ile)
+- ✅ Kapsamlı hata yönetimi
+- ✅ Detaylı loglama
+- ✅ CRS doğrulama (Paris-London: 344.3 km ✓, Rome-Athens: 1051.8 km ✓)
+- ✅ Boş input handling
+- ✅ Transaction güvenliği
+
+#### Buffer Mesafeleri:
+```python
+BUFFER_DISTANCES = {
+    'urban': 5000,        # 5 km - Kentsel özellikler
+    'fire': 25000,        # 25 km - Yangın olayları
+    'earthquake': 50000,  # 50 km - Depremler
+    'flood': 50000,       # 50 km - Sel bölgeleri
+    'max_distance': 100000  # 100 km - Maximum nearest-neighbor mesafesi
+}
+```
 
 #### Test Komutları:
 ```bash
-# Mekansal birleştirme işlemini çalıştır
+# Birim testleri çalıştır
+python -m unittest tests.test_spatial_join -v
+# ✅ 16/16 tests passing (0.211s)
+
+# Dry-run modu (veritabanı güncellemesi olmadan doğrulama)
+python -m src.etl.spatial_join --dry-run
+
+# Mekansal birleştirme işlemini çalıştır (gerçek)
 python -m src.etl.spatial_join
+
+# Verbose mode ile detaylı loglama
+python -m src.etl.spatial_join --verbose
+
+# Quiet mode
+python -m src.etl.spatial_join --quiet
 
 # Mesafe hesaplamalarını kontrol et
 psql -U postgres -d unesco_risk -c "SELECT AVG(distance_to_site_m), MAX(distance_to_site_m) FROM unesco_risk.urban_features WHERE distance_to_site_m IS NOT NULL;"
+
+# Spatial join sonuçlarını doğrula
+psql -U postgres -d unesco_risk -c "SELECT COUNT(*) FROM unesco_risk.urban_features WHERE nearest_site_id IS NOT NULL;"
+psql -U postgres -d unesco_risk -c "SELECT COUNT(*) FROM unesco_risk.earthquake_events WHERE nearest_site_id IS NOT NULL;"
+psql -U postgres -d unesco_risk -c "SELECT AVG(distance_to_site_km) FROM unesco_risk.earthquake_events WHERE nearest_site_id IS NOT NULL;"
 ```
+
+#### CRS Doğrulama Sonuçları:
+```
+✓ Paris to London: 344.3 km (expected: 340-350 km)
+✓ Rome to Athens: 1051.8 km (expected: 1050-1150 km)
+CRS transformation validation PASSED
+```
+
+#### Uygulama Notları (17 Şubat 2026):
+- **Modül Yapısı**: ~750 satır kod, 11 core fonksiyon
+- **Test Coverage**: 16 test, 100% passing
+- **CRS Stratejisi**: WGS84 (4326) storage, ETRS89/LAEA (3035) computation
+- **Performans**: Batch processing ile büyük veri setleri desteklenir
+- **Dokümantasyon**: Comprehensive guide ve summary hazır
+- **Next Phase**: Faz 6 (Risk Scoring Engine) için hazır
+
+#### Fonksiyon Listesi:
+1. `create_buffers()` — Concentric buffer zones oluşturma
+2. `join_urban_to_sites()` — Kentsel özellikleri sitelere bağlama
+3. `join_hazards_to_sites()` — Tehlikeleri en yakın siteye bağlama
+4. `update_urban_features_distances()` — Database güncelleme (urban)
+5. `update_earthquake_distances()` — Database güncelleme (earthquakes)
+6. `update_fire_distances()` — Database güncelleme (fires)
+7. `update_flood_distances()` — Database güncelleme (floods)
+8. `validate_crs_transformation()` — CRS doğrulama
+9. `run_full_spatial_join()` — Ana pipeline orchestrator
 
 ---
 
