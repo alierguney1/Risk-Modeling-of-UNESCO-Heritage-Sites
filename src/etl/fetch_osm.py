@@ -171,8 +171,8 @@ def map_osm_to_db_schema(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     if not mapped_data:
         return gpd.GeoDataFrame()
     
-    # Create new GeoDataFrame
-    mapped_gdf = gpd.GeoDataFrame(mapped_data, crs=gdf.crs)
+    # Create new GeoDataFrame with explicit geometry column
+    mapped_gdf = gpd.GeoDataFrame(mapped_data, geometry='geom', crs=gdf.crs)
     logger.debug(f"Mapped {len(mapped_gdf)} OSM features to DB schema")
     
     return mapped_gdf

@@ -284,8 +284,8 @@ def upsert_earthquake_data(gdf: gpd.GeoDataFrame, session: Session) -> int:
                     'mmi': float(row['mmi']) if pd.notna(row['mmi']) else None,
                     'alert_level': str(row['alert_level']) if pd.notna(row['alert_level']) else None,
                     'tsunami': bool(row['tsunami']) if pd.notna(row['tsunami']) else False,
-                    'lon': row.geometry.x,
-                    'lat': row.geometry.y,
+                    'lon': row['geom'].x,
+                    'lat': row['geom'].y,
                 })
                 inserted += 1
             except Exception as e:

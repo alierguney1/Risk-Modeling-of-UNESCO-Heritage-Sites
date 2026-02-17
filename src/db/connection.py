@@ -105,3 +105,8 @@ def test_connection():
     except Exception as e:
         print(f"✗ Database connection failed: {e}")
         return False
+
+
+# Backward compatibility exports
+engine = get_engine()
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)

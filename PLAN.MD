@@ -1562,7 +1562,17 @@ SELECT indexname FROM pg_indexes WHERE schemaname = 'unesco_risk';
 
 > **Goal**: All 6 external data sources fetched and stored. These 5 sub-tasks can be developed **in parallel** (each is independent, only depends on Phase 3).
 > 
-> **Status**: ✅ COMPLETED (Implementation) — All ETL modules created and ready for execution
+> **Status**: ✅ COMPLETED (Implementation & Verified) — All ETL modules created, bug-fixed, and tested with live data.
+>
+> **Verification (17 Feb 2026)**:
+> - Bug fixes applied: `row.geometry` → `row['geom']` in fetch_earthquake.py, fetch_climate.py, fetch_fire.py; GeoDataFrame `geometry='geom'` parameter added in fetch_osm.py; `engine` export added to connection.py
+> - OSM: 32,728 features inserted (5-site test) ✅
+> - Earthquake: 6,501 events inserted (full Europe, M3+, 2015–2025) ✅
+> - Climate: 6,576 records inserted (5-site test, Open-Meteo) ✅
+> - Fire: 1,232 detections inserted (5-day NRT, VIIRS_SNPP) ✅
+> - Elevation: 5 sites updated with elevation data ✅
+> - Flood: 5 placeholder records (GFMS unavailable, placeholder mode) ✅
+> - FIRMS API day range limit: max 5 days (not 10 as documented)
 
 #### 4A — OSM Urban Features (`src/etl/fetch_osm.py`) _(Days 7–9)_
 
@@ -1797,7 +1807,7 @@ SELECT AVG(distance_to_site_km) FROM earthquake_events WHERE nearest_site_id IS 
 | Phase 1 | ✅ | Project Scaffolding & Configuration | Days 2–3 |
 | Phase 2 | ✅ | Database Layer (PostGIS + ORM) | Days 3–5 |
 | Phase 3 | ✅ | Core ETL: UNESCO Heritage Sites | Days 5–7 |
-| Phase 4 | ✅ | ETL: Hazard & Environmental Data | Days 7–14 |
+| Phase 4 | ✅ | ETL: Hazard & Environmental Data (Verified) | Days 7–14 |
 | Phase 5 | ⬜ | CRS Transformation & Spatial Join | Days 14–16 |
 | Phase 6 | ⬜ | Risk Scoring Engine | Days 16–20 |
 | Phase 7 | ⬜ | Anomaly Detection & Density Analysis | Days 20–23 |

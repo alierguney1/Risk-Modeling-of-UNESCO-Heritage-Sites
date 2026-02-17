@@ -285,8 +285,8 @@ def upsert_climate_data(df: pd.DataFrame, session: Session) -> int:
                     'wind_gust_ms': float(row['wind_gust_ms']) if pd.notna(row['wind_gust_ms']) else None,
                     'solar_radiation_kwh': float(row['solar_radiation_kwh']) if pd.notna(row['solar_radiation_kwh']) else None,
                     'humidity_pct': float(row['humidity_pct']) if pd.notna(row['humidity_pct']) else None,
-                    'lon': row.geometry.x,
-                    'lat': row.geometry.y,
+                    'lon': row['geom'].x,
+                    'lat': row['geom'].y,
                 })
                 inserted += 1
             except Exception as e:

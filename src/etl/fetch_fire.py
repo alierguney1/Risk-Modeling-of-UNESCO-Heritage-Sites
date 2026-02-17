@@ -279,8 +279,8 @@ def upsert_fire_data(gdf: gpd.GeoDataFrame, session: Session) -> int:
                     'satellite': row['satellite'],
                     'acq_date': row['acq_date'],
                     'acq_time': row['acq_time'],
-                    'lon': row.geometry.x,
-                    'lat': row.geometry.y,
+                    'lon': row['geom'].x,
+                    'lat': row['geom'].y,
                 }).scalar()
                 
                 if exists > 0:
@@ -303,8 +303,8 @@ def upsert_fire_data(gdf: gpd.GeoDataFrame, session: Session) -> int:
                     'acq_date': row['acq_date'],
                     'acq_time': row['acq_time'],
                     'day_night': row['day_night'],
-                    'lon': row.geometry.x,
-                    'lat': row.geometry.y,
+                    'lon': row['geom'].x,
+                    'lat': row['geom'].y,
                 })
                 inserted += 1
             except Exception as e:
