@@ -9,8 +9,8 @@ from sqlalchemy import (
     ForeignKey, CheckConstraint, UniqueConstraint, text
 )
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from geoalchemy2 import Geometry
-from datetime import datetime
 
 from src.db.connection import Base
 
@@ -34,8 +34,8 @@ class HeritageSite(Base):
     area_hectares = Column(Float)
     description = Column(String)
     geom = Column(Geometry('POINT', srid=4326), nullable=False)
-    created_at = Column(DateTime, default=datetime.now)
-    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     
     # Relationships
     climate_events = relationship("ClimateEvent", back_populates="site")
@@ -60,7 +60,7 @@ class UrbanFeature(Base):
     nearest_site_id = Column(Integer, ForeignKey('unesco_risk.heritage_sites.id'))
     distance_to_site_m = Column(Float)
     geom = Column(Geometry('GEOMETRY', srid=4326), nullable=False)
-    fetched_at = Column(DateTime, default=datetime.now)
+    fetched_at = Column(DateTime, server_default=func.now())
     
     def __repr__(self):
         return f"<UrbanFeature(id={self.id}, type='{self.feature_type}', value='{self.feature_value}')>"
@@ -88,7 +88,7 @@ class ClimateEvent(Base):
     solar_radiation_kwh = Column(Float)
     humidity_pct = Column(Float)
     geom = Column(Geometry('POINT', srid=4326))
-    created_at = Column(DateTime, default=datetime.now)
+    created_at = Column(DateTime, server_default=func.now())
     
     # Relationships
     site = relationship("HeritageSite", back_populates="climate_events")
@@ -117,7 +117,7 @@ class EarthquakeEvent(Base):
     nearest_site_id = Column(Integer, ForeignKey('unesco_risk.heritage_sites.id'))
     distance_to_site_km = Column(Float)
     geom = Column(Geometry('POINT', srid=4326), nullable=False)
-    created_at = Column(DateTime, default=datetime.now)
+    created_at = Column(DateTime, server_default=func.now())
     
     def __repr__(self):
         return f"<EarthquakeEvent(usgs_id='{self.usgs_id}', magnitude={self.magnitude})>"
@@ -140,7 +140,7 @@ class FireEvent(Base):
     nearest_site_id = Column(Integer, ForeignKey('unesco_risk.heritage_sites.id'))
     distance_to_site_km = Column(Float)
     geom = Column(Geometry('POINT', srid=4326), nullable=False)
-    created_at = Column(DateTime, default=datetime.now)
+    created_at = Column(DateTime, server_default=func.now())
     
     def __repr__(self):
         return f"<FireEvent(id={self.id}, date={self.acq_date}, brightness={self.brightness})>"
@@ -158,7 +158,7 @@ class FloodZone(Base):
     nearest_site_id = Column(Integer, ForeignKey('unesco_risk.heritage_sites.id'))
     distance_to_site_km = Column(Float)
     geom = Column(Geometry('POINT', srid=4326))
-    created_at = Column(DateTime, default=datetime.now)
+    created_at = Column(DateTime, server_default=func.now())
     
     def __repr__(self):
         return f"<FloodZone(id={self.id}, date={self.event_date}, intensity={self.flood_intensity})>"
@@ -182,7 +182,7 @@ class RiskScore(Base):
     isolation_forest_score = Column(Float)
     is_anomaly = Column(Boolean, default=False)
     risk_level = Column(String(20), CheckConstraint("risk_level IN ('critical', 'high', 'medium', 'low')"))
-    calculated_at = Column(DateTime, default=datetime.now)
+    calculated_at = Column(DateTime, server_default=func.now())
     
     # Relationships
     site = relationship("HeritageSite", back_populates="risk_score")
