@@ -164,24 +164,33 @@ python -c "from src.db.connection import engine, get_session; session = get_sess
 
 ---
 
-### 🔄 Faz 3 — Temel ETL: UNESCO Miras Siteleri _(Devam Ediyor)_
+### ✅ Faz 3 — Temel ETL: UNESCO Miras Siteleri _(Tamamlandı)_
 
-**Durum**: DEVAM EDİYOR  
+**Durum**: TAMAMLANDI  
 **Tarih**: Gün 5-7  
 **Hedef**: ~500 Avrupa UNESCO sitesini veritabanına yüklemek
 
-#### Tamamlanacak İşler:
-- [ ] `src/etl/fetch_unesco.py` modülü oluşturulacak
-- [ ] UNESCO API'den veri çekilecek
-- [ ] XML/JSON verisi parse edilecek
-- [ ] Avrupa filtrelemesi (EUROPE_ISO_CODES)
-- [ ] PostGIS'e kayıt edilecek
-- [ ] Hata yönetimi ve loglama eklenecek
-- [ ] İlerleme çubuğu (tqdm) eklenecek
+#### Tamamlanan İşler:
+- [x] `src/etl/fetch_unesco.py` modülü oluşturuldu
+- [x] UNESCO API'den veri çekme (XML ve JSON desteği)
+- [x] XML/JSON verisi parse edildi
+- [x] Avrupa filtrelemesi (EUROPE_ISO_CODES) eklendi
+- [x] PostGIS UPSERT fonksiyonu implementasyonu
+- [x] Hata yönetimi ve loglama eklendi
+- [x] İlerleme çubuğu (tqdm) eklendi
+- [x] CLI arayüzü (--dry-run, --all, --json, --verbose)
+- [x] Veri kalite kontrolleri ve validasyon
+- [x] Birim testleri oluşturuldu (5/5 passing)
 
-#### Bekleyen Test Komutları:
+#### Test Komutları:
 ```bash
-# UNESCO veri çekme modülünü çalıştır
+# Testleri çalıştır
+pytest tests/test_unesco_etl.py -v
+
+# UNESCO veri çekme modülünü çalıştır (dry-run)
+python -m src.etl.fetch_unesco --dry-run
+
+# UNESCO veri çekme modülünü çalıştır (gerçek)
 python -m src.etl.fetch_unesco
 
 # Veritabanındaki site sayısını kontrol et
@@ -222,6 +231,38 @@ Categories:
  Natural    |    70+
  Mixed      |    30+
 ```
+
+#### CLI Kullanım Örnekleri:
+```bash
+# Yardım mesajını göster
+python -m src.etl.fetch_unesco --help
+
+# Sadece Avrupa siteleri (varsayılan), dry-run modu
+python -m src.etl.fetch_unesco --dry-run
+
+# Tüm dünya sitelerini çek
+python -m src.etl.fetch_unesco --all
+
+# JSON endpoint kullan (XML yerine)
+python -m src.etl.fetch_unesco --json
+
+# Verbose logging ile çalıştır
+python -m src.etl.fetch_unesco --verbose
+
+# Kombine kullanım
+python -m src.etl.fetch_unesco --all --json --dry-run --verbose
+```
+
+#### Modül Özellikleri:
+- ✅ XML ve JSON endpoint desteği
+- ✅ Otomatik fallback (XML başarısız olursa JSON)
+- ✅ Avrupa filtresi (50 ISO kodu)
+- ✅ Transboundary (çok uluslu) site desteği
+- ✅ UPSERT (Insert or Update) ile veri güncelleme
+- ✅ Veri kalite kontrolleri
+- ✅ İlerleme göstergesi (tqdm)
+- ✅ Detaylı loglama
+- ✅ Dry-run modu
 
 ---
 
@@ -664,5 +705,5 @@ Herhangi bir sorunla karşılaşırsanız:
 ---
 
 **Son Güncelleme**: 17 Şubat 2026  
-**Versiyon**: 1.0  
-**Aktif Faz**: Faz 3 (UNESCO ETL)
+**Versiyon**: 1.1  
+**Aktif Faz**: Faz 3 TAMAMLANDI - Faz 4 (Hazard & Environmental Data) hazır
