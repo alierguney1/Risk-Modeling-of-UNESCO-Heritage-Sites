@@ -256,6 +256,7 @@ python -m src.etl.fetch_unesco --all --json --dry-run --verbose
 #### Modül Özellikleri:
 - ✅ XML ve JSON endpoint desteği
 - ✅ Otomatik fallback (XML başarısız olursa JSON)
+- ✅ Cloudflare bypass (`cloudscraper` kütüphanesi ile)
 - ✅ Avrupa filtresi (50 ISO kodu)
 - ✅ Transboundary (çok uluslu) site desteği
 - ✅ UPSERT (Insert or Update) ile veri güncelleme
@@ -263,6 +264,15 @@ python -m src.etl.fetch_unesco --all --json --dry-run --verbose
 - ✅ İlerleme göstergesi (tqdm)
 - ✅ Detaylı loglama
 - ✅ Dry-run modu
+
+#### Uygulama Notları (17 Şubat 2026):
+- UNESCO XML/JSON endpoint'leri Cloudflare koruması altında (403 Forbidden)
+- `cloudscraper` kütüphanesi eklenerek Cloudflare bypass edildi
+- XML parse fonksiyonu düzeltildi: koordinatlar `<geolocations>/<poi>/<latitude>` altında
+- `numpy.int64` → Python `int` type casting düzeltmesi yapıldı
+- **556 Avrupa UNESCO sitesi** başarıyla veritabanına yüklendi
+  - Cultural: 491 | Natural: 55 | Mixed: 10
+  - En çok site: İtalya (54), Fransa (46), İspanya (46), Almanya (44)
 
 ---
 
@@ -705,5 +715,5 @@ Herhangi bir sorunla karşılaşırsanız:
 ---
 
 **Son Güncelleme**: 17 Şubat 2026  
-**Versiyon**: 1.1  
-**Aktif Faz**: Faz 3 TAMAMLANDI - Faz 4 (Hazard & Environmental Data) hazır
+**Versiyon**: 1.2  
+**Aktif Faz**: Faz 3 TAMAMLANDI (556 site yüklendi) - Faz 4 (Hazard & Environmental Data) hazır

@@ -1536,7 +1536,7 @@ SELECT indexname FROM pg_indexes WHERE schemaname = 'unesco_risk';
 
 ---
 
-### ⬜ Phase 3 — Core ETL: UNESCO Heritage Sites _(Days 5–7)_
+### ✅ Phase 3 — Core ETL: UNESCO Heritage Sites _(Days 5–7)_
 
 > **Goal**: ~500 European UNESCO heritage sites fetched, parsed, and stored in PostGIS. This is the **foundation** for all subsequent data fetches.
 
@@ -1794,7 +1794,7 @@ SELECT AVG(distance_to_site_km) FROM earthquake_events WHERE nearest_site_id IS 
 | Phase 0 | ✅ | Environment Setup & Prerequisites | Days 1–2 |
 | Phase 1 | ✅ | Project Scaffolding & Configuration | Days 2–3 |
 | Phase 2 | ✅ | Database Layer (PostGIS + ORM) | Days 3–5 |
-| Phase 3 | ⬜ | Core ETL: UNESCO Heritage Sites | Days 5–7 |
+| Phase 3 | ✅ | Core ETL: UNESCO Heritage Sites | Days 5–7 |
 | Phase 4 | ⬜ | ETL: Hazard & Environmental Data | Days 7–14 |
 | Phase 5 | ⬜ | CRS Transformation & Spatial Join | Days 14–16 |
 | Phase 6 | ⬜ | Risk Scoring Engine | Days 16–20 |

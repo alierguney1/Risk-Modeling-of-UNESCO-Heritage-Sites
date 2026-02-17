@@ -14,6 +14,7 @@ import xml.etree.ElementTree as ET
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 
+import cloudscraper
 import requests
 import pandas as pd
 import geopandas as gpd
@@ -43,6 +44,9 @@ def fetch_xml_data(url: str = UNESCO_XML_URL, timeout: int = 30) -> Optional[str
     """
     Fetch UNESCO sites data from XML endpoint.
     
+    Uses cloudscraper to bypass Cloudflare protection, with fallback
+    to plain requests if cloudscraper fails.
+    
     Args:
         url: UNESCO XML endpoint URL
         timeout: Request timeout in seconds
@@ -50,8 +54,20 @@ def fetch_xml_data(url: str = UNESCO_XML_URL, timeout: int = 30) -> Optional[str
     Returns:
         Raw XML string if successful, None otherwise
     """
+    # Try cloudscraper first (bypasses Cloudflare)
     try:
-        logger.info(f"Fetching data from {url}")
+        logger.info(f"Fetching data from {url} (using cloudscraper)")
+        scraper = cloudscraper.create_scraper()
+        response = scraper.get(url, timeout=timeout)
+        response.raise_for_status()
+        logger.info(f"✓ Successfully fetched XML data ({len(response.content)} bytes)")
+        return response.text
+    except Exception as e:
+        logger.warning(f"cloudscraper failed: {e}, trying plain requests...")
+    
+    # Fallback to plain requests
+    try:
+        logger.info(f"Fetching data from {url} (using requests)")
         response = requests.get(url, timeout=timeout)
         response.raise_for_status()
         logger.info(f"✓ Successfully fetched XML data ({len(response.content)} bytes)")
@@ -65,6 +81,9 @@ def fetch_json_data(url: str = UNESCO_JSON_URL, timeout: int = 30) -> Optional[L
     """
     Fetch UNESCO sites data from JSON endpoint (fallback).
     
+    Uses cloudscraper to bypass Cloudflare protection, with fallback
+    to plain requests if cloudscraper fails.
+    
     Args:
         url: UNESCO JSON endpoint URL
         timeout: Request timeout in seconds
@@ -72,8 +91,21 @@ def fetch_json_data(url: str = UNESCO_JSON_URL, timeout: int = 30) -> Optional[L
     Returns:
         List of site dictionaries if successful, None otherwise
     """
+    # Try cloudscraper first (bypasses Cloudflare)
     try:
-        logger.info(f"Fetching data from JSON fallback: {url}")
+        logger.info(f"Fetching data from JSON fallback: {url} (using cloudscraper)")
+        scraper = cloudscraper.create_scraper()
+        response = scraper.get(url, timeout=timeout)
+        response.raise_for_status()
+        data = response.json()
+        logger.info(f"✓ Successfully fetched JSON data ({len(data)} sites)")
+        return data
+    except Exception as e:
+        logger.warning(f"cloudscraper JSON failed: {e}, trying plain requests...")
+    
+    # Fallback to plain requests
+    try:
+        logger.info(f"Fetching data from JSON fallback: {url} (using requests)")
         response = requests.get(url, timeout=timeout)
         response.raise_for_status()
         data = response.json()
@@ -107,9 +139,22 @@ def parse_xml_to_records(xml_string: str) -> List[Dict]:
                 if not whc_id:
                     continue  # Skip if no ID
                     
-                # Get coordinates
-                latitude = row.findtext('latitude')
-                longitude = row.findtext('longitude')
+                # Get coordinates from <geolocations>/<poi> structure
+                latitude = None
+                longitude = None
+                
+                # First try geolocations/poi structure (current UNESCO XML format)
+                geo = row.find('.//geolocations')
+                if geo is not None:
+                    poi = geo.find('.//poi')
+                    if poi is not None:
+                        latitude = poi.findtext('latitude')
+                        longitude = poi.findtext('longitude')
+                
+                # Fallback: try direct latitude/longitude at row level
+                if not latitude or not longitude:
+                    latitude = row.findtext('latitude')
+                    longitude = row.findtext('longitude')
                 
                 # Skip sites without valid coordinates
                 if not latitude or not longitude:
@@ -404,14 +449,14 @@ def upsert_to_database(gdf: gpd.GeoDataFrame, dry_run: bool = False) -> int:
                 'whc_id': int(row['whc_id']),
                 'name': row['name'][:500] if row['name'] else None,
                 'category': row['category'],
-                'date_inscribed': row['date_inscribed'],
+                'date_inscribed': int(row['date_inscribed']) if pd.notna(row['date_inscribed']) else None,
                 'country': row['country'][:200] if row['country'] else None,
                 'iso_code': row['iso_code'][:20] if row['iso_code'] else None,
                 'region': row['region'][:100] if row['region'] else None,
                 'criteria': row['criteria'][:100] if row['criteria'] else None,
                 'in_danger': bool(row['in_danger']),
                 'area_hectares': float(row['area_hectares']) if pd.notna(row['area_hectares']) else None,
-                'description': row['description'],
+                'description': str(row['description']) if pd.notna(row['description']) else None,
                 'geom': f'SRID={SRC_CRS};POINT({row.geometry.x} {row.geometry.y})',
             }
             sites_data.append(site_data)
