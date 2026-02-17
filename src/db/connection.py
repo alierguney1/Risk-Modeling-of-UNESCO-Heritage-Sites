@@ -4,7 +4,7 @@ Database connection module for UNESCO Heritage Sites Risk Modeling.
 Provides SQLAlchemy engine and session management with connection pooling.
 """
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.pool import QueuePool
 from config.settings import DATABASE_URL
@@ -97,7 +97,7 @@ def test_connection():
     try:
         engine = get_engine()
         with engine.connect() as conn:
-            result = conn.execute("SELECT PostGIS_Version();")
+            result = conn.execute(text("SELECT PostGIS_Version();"))
             version = result.scalar()
             print(f"✓ Database connection successful!")
             print(f"✓ PostGIS version: {version}")
