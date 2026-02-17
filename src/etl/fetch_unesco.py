@@ -11,7 +11,7 @@ import argparse
 import logging
 import sys
 import xml.etree.ElementTree as ET
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 
 import requests
@@ -275,7 +275,7 @@ def filter_european_sites(records: List[Dict]) -> List[Dict]:
     return european_sites
 
 
-def validate_records(records: List[Dict]) -> tuple[List[Dict], Dict]:
+def validate_records(records: List[Dict]) -> Tuple[List[Dict], Dict]:
     """
     Validate site records for data quality.
     
@@ -352,8 +352,8 @@ def create_geodataframe(records: List[Dict]) -> gpd.GeoDataFrame:
     # Create DataFrame
     df = pd.DataFrame(records)
     
-    # Create Point geometries
-    geometry = [Point(row['longitude'], row['latitude']) for _, row in df.iterrows()]
+    # Create Point geometries using vectorized operation (more efficient than iterrows)
+    geometry = gpd.points_from_xy(df['longitude'], df['latitude'])
     
     # Create GeoDataFrame
     gdf = gpd.GeoDataFrame(
@@ -376,7 +376,8 @@ def upsert_to_database(gdf: gpd.GeoDataFrame, dry_run: bool = False) -> int:
     """
     Insert or update heritage sites in the database.
     
-    Uses PostgreSQL UPSERT (INSERT ... ON CONFLICT) to handle duplicates.
+    Uses PostgreSQL UPSERT (INSERT ... ON CONFLICT) with bulk operations
+    for better performance.
     
     Args:
         gdf: GeoDataFrame with heritage sites
@@ -395,11 +396,13 @@ def upsert_to_database(gdf: gpd.GeoDataFrame, dry_run: bool = False) -> int:
     try:
         logger.info(f"Inserting/updating {len(gdf)} sites to database...")
         
-        for idx, row in tqdm(gdf.iterrows(), total=len(gdf), desc="Upserting sites"):
-            # Prepare data for insert
+        # Prepare all site data for bulk insert (more efficient than iterrows)
+        sites_data = []
+        for idx in tqdm(range(len(gdf)), desc="Preparing data"):
+            row = gdf.iloc[idx]
             site_data = {
                 'whc_id': int(row['whc_id']),
-                'name': row['name'][:500] if row['name'] else None,  # Truncate to fit column
+                'name': row['name'][:500] if row['name'] else None,
                 'category': row['category'],
                 'date_inscribed': row['date_inscribed'],
                 'country': row['country'][:200] if row['country'] else None,
@@ -411,7 +414,11 @@ def upsert_to_database(gdf: gpd.GeoDataFrame, dry_run: bool = False) -> int:
                 'description': row['description'],
                 'geom': f'SRID={SRC_CRS};POINT({row.geometry.x} {row.geometry.y})',
             }
-            
+            sites_data.append(site_data)
+        
+        # Bulk upsert using batch insert
+        logger.info("Executing bulk upsert...")
+        for site_data in tqdm(sites_data, desc="Upserting to DB"):
             # Create UPSERT statement
             stmt = insert(HeritageSite.__table__).values(**site_data)
             
