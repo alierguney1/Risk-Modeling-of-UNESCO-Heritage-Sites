@@ -276,38 +276,61 @@ python -m src.etl.fetch_unesco --all --json --dry-run --verbose
 
 ---
 
-### ⬜ Faz 4 — ETL: Tehlike ve Çevre Verileri _(Beklemede)_
+### ✅ Faz 4 — ETL: Tehlike ve Çevre Verileri _(Tamamlandı)_
 
-**Durum**: BEKLEMEDE (Faz 3'e bağımlı)  
-**Tarih**: Gün 7-14
+**Durum**: TAMAMLANDI (Modül implementasyonu)  
+**Tarih**: Gün 7-14  
+**Tamamlanma**: 17 Şubat 2026
 
 #### Alt Fazlar (Paralel Geliştirilebilir):
 
-##### 4A — OSM Kentsel Özellikler
-- [ ] `src/etl/fetch_osm.py` oluştur
-- [ ] Her site için 5km yarıçapında OSM verisi çek
-- [ ] Bina, arazi kullanımı verilerini kaydet
+##### 4A — OSM Kentsel Özellikler ✅
+- [x] `src/etl/fetch_osm.py` oluşturuldu
+- [x] OSMnx ile 5km yarıçapında veri çekme implementasyonu
+- [x] Bina ve arazi kullanımı verilerini parse etme
+- [x] EPSG:3035 ile alan hesaplama
+- [x] UPSERT fonksiyonu ile `urban_features` tablosuna kayıt
+- [x] CLI: --test, --limit, --verbose parametreleri
 
-##### 4B — İklim Verileri
-- [ ] `src/etl/fetch_climate.py` oluştur
-- [ ] Open-Meteo API entegrasyonu
-- [ ] NASA POWER API entegrasyonu
-- [ ] 2020-2025 zaman serisi verileri
+##### 4B — İklim Verileri ✅
+- [x] `src/etl/fetch_climate.py` oluşturuldu
+- [x] Open-Meteo Archive API entegrasyonu
+- [x] NASA POWER API entegrasyonu
+- [x] 2020-2025 zaman serisi verileri (6 yıl, günlük)
+- [x] İki kaynaktan veri birleştirme
+- [x] Rate limiting (Open-Meteo: 0.5s, NASA: 2s)
+- [x] UPSERT ile `climate_events` tablosuna kayıt
+- [x] CLI: --source {open_meteo|nasa_power|both}
 
-##### 4C — Deprem Verileri
-- [ ] `src/etl/fetch_earthquake.py` oluştur
-- [ ] USGS Earthquake API entegrasyonu
-- [ ] Magnitude 3.0+ olayları
+##### 4C — Deprem Verileri ✅
+- [x] `src/etl/fetch_earthquake.py` oluşturuldu
+- [x] USGS Earthquake Catalog API entegrasyonu
+- [x] Magnitude 3.0+ olayları (2015-2025)
+- [x] Pagination desteği (>20k kayıt için yıllara böl)
+- [x] UPSERT ile `earthquake_events` tablosuna kayıt
+- [x] Bilinen depremler için doğrulama (Turkey 2023 M7.8)
+- [x] CLI: --min-mag, --start-date, --end-date
 
-##### 4D — Yangın Verileri
-- [ ] `src/etl/fetch_fire.py` oluştur
-- [ ] NASA FIRMS API entegrasyonu
-- [ ] Son 10 gün yangın tespitleri
+##### 4D — Yangın Verileri ✅
+- [x] `src/etl/fetch_fire.py` oluşturuldu
+- [x] NASA FIRMS API entegrasyonu
+- [x] VIIRS ve MODIS uydu verileri
+- [x] Son 10 gün NRT (Near Real-Time) verileri
+- [x] Güven değeri normalizasyonu (VIIRS: low/nominal/high → 0-100)
+- [x] `fire_events` tablosuna kayıt (deduplication)
+- [x] CLI: --days, --source {VIIRS_SNPP_NRT|VIIRS_NOAA20_NRT|MODIS_NRT}
+- [x] Not: Tarihsel veri için manuel arşiv indirme gerekli
 
-##### 4E — Sel ve Yükseklik Verileri
-- [ ] `src/etl/fetch_flood.py` oluştur
-- [ ] `src/etl/fetch_elevation.py` oluştur
-- [ ] GFMS ve OpenTopography API entegrasyonu
+##### 4E — Sel ve Yükseklik Verileri ✅
+- [x] `src/etl/fetch_flood.py` oluşturuldu
+- [x] `src/etl/fetch_elevation.py` oluşturuldu
+- [x] OpenTopography API ile yükseklik verisi (COP30 DEM)
+- [x] Rasterio ile GeoTIFF parsing
+- [x] Kıyı riski skoru hesaplama: max(0, 1 - elevation/10)
+- [x] `heritage_sites` tablosuna elevation kolonları ekleme
+- [x] GFMS sel verileri framework (manuel indirme gerekli)
+- [x] `flood_zones` tablosuna kayıt
+- [x] Placeholder veri desteği (GFMS yoksa)
 
 #### Test Komutları (Her Alt Faz İçin):
 ```bash
@@ -715,5 +738,5 @@ Herhangi bir sorunla karşılaşırsanız:
 ---
 
 **Son Güncelleme**: 17 Şubat 2026  
-**Versiyon**: 1.2  
-**Aktif Faz**: Faz 3 TAMAMLANDI (556 site yüklendi) - Faz 4 (Hazard & Environmental Data) hazır
+**Versiyon**: 1.3  
+**Aktif Faz**: Faz 4 TAMAMLANDI (Tüm ETL modülleri implementasyonu) - Hazard & Environmental Data ETL modülleri hazır
