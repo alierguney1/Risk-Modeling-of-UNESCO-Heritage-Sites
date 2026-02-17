@@ -1558,9 +1558,11 @@ SELECT indexname FROM pg_indexes WHERE schemaname = 'unesco_risk';
 
 ---
 
-### ⬜ Phase 4 — ETL: Hazard & Environmental Data Sources _(Days 7–14)_
+### ✅ Phase 4 — ETL: Hazard & Environmental Data Sources _(Days 7–14)_
 
 > **Goal**: All 6 external data sources fetched and stored. These 5 sub-tasks can be developed **in parallel** (each is independent, only depends on Phase 3).
+> 
+> **Status**: ✅ COMPLETED (Implementation) — All ETL modules created and ready for execution
 
 #### 4A — OSM Urban Features (`src/etl/fetch_osm.py`) _(Days 7–9)_
 
@@ -1795,7 +1797,7 @@ SELECT AVG(distance_to_site_km) FROM earthquake_events WHERE nearest_site_id IS 
 | Phase 1 | ✅ | Project Scaffolding & Configuration | Days 2–3 |
 | Phase 2 | ✅ | Database Layer (PostGIS + ORM) | Days 3–5 |
 | Phase 3 | ✅ | Core ETL: UNESCO Heritage Sites | Days 5–7 |
-| Phase 4 | ⬜ | ETL: Hazard & Environmental Data | Days 7–14 |
+| Phase 4 | ✅ | ETL: Hazard & Environmental Data | Days 7–14 |
 | Phase 5 | ⬜ | CRS Transformation & Spatial Join | Days 14–16 |
 | Phase 6 | ⬜ | Risk Scoring Engine | Days 16–20 |
 | Phase 7 | ⬜ | Anomaly Detection & Density Analysis | Days 20–23 |
