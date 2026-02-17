@@ -452,27 +452,52 @@ CRS transformation validation PASSED
 
 ---
 
-### ⬜ Faz 6 — Risk Skorlama Motoru _(Beklemede)_
+### ✅ Faz 6 — Risk Skorlama Motoru _(Tamamlandı)_
 
-**Durum**: BEKLEMEDE (Faz 5'e bağımlı)  
-**Tarih**: Gün 16-20
+**Durum**: TAMAMLANDI  
+**Tarih**: Gün 16-20  
+**Tamamlanma**: 17 Şubat 2026
 
-#### Tamamlanacak İşler:
-- [ ] `src/analysis/risk_scoring.py` oluştur
-- [ ] Yakınlık Risk Skoru algoritması
-- [ ] 6 risk kategorisi hesaplaması:
-  - Kentsel yoğunluk riski
-  - İklim anomalisi riski
-  - Sismik risk
-  - Yangın riski
-  - Sel riski
-  - Kıyı riski
-- [ ] Kompozit risk skoru hesaplama
+#### Tamamlanan İşler:
+- [x] `src/analysis/risk_scoring.py` modülü oluşturuldu
+- [x] 6 risk kategorisi hesaplama fonksiyonları implementasyonu:
+  - `compute_urban_density_score()` — Kentsel yoğunluk riski (5km buffer içinde bina sayısı + alan)
+  - `compute_climate_anomaly_score()` — İklim anomalisi riski (Z-skor analizi, aşırı hava olayları)
+  - `compute_seismic_risk_score()` — Sismik risk (Gutenberg-Richter enerji formülü, 50km buffer)
+  - `compute_fire_risk_score()` — Yangın riski (FRP × confidence / distance, 25km buffer)
+  - `compute_flood_risk_score()` — Sel riski (GFMS + tarihi sel sıklığı, 50km buffer)
+  - `compute_coastal_risk_score()` — Kıyı riski (max(0, 1 - elevation/10) kıyı siteleri için)
+- [x] Min-Max normalizasyon (sklearn.preprocessing.MinMaxScaler)
+- [x] `compute_composite_score()` — Ağırlıklı ortalama + risk seviyesi atama
+- [x] Risk seviyeleri: low (0-0.25), medium (0.25-0.50), high (0.50-0.75), critical (0.75-1.0)
+- [x] UPSERT ile `risk_scores` tablosuna kayıt
+- [x] Risk ağırlıkları doğrulama (sum = 1.0)
+- [x] CLI arayüzü (--dry-run, --verbose)
+- [x] Birim testleri oluşturuldu (8/8 passing)
+
+#### Modül Özellikleri:
+- ✅ 6 alt-skor hesaplama fonksiyonu
+- ✅ Tüm skorlar [0, 1] aralığında normalize edilir
+- ✅ Kompozit skor: DEFAULT_WEIGHTS ile ağırlıklı ortalama
+- ✅ Risk ağırlıkları yapılandırılabilir (config/settings.py)
+- ✅ NaN değerleri 0 ile değiştirilir
+- ✅ Kapsamlı hata yönetimi ve loglama
+- ✅ Dry-run modu test için
 
 #### Test Komutları:
 ```bash
-# Risk skorlarını hesapla
+# Birim testleri çalıştır
+python -m unittest tests.test_risk_scoring -v
+# ✅ 8/8 tests passing
+
+# Dry-run modu (veritabanı güncellemesi olmadan)
+python -m src.analysis.risk_scoring --dry-run
+
+# Risk skorlarını hesapla (gerçek)
 python -m src.analysis.risk_scoring
+
+# Verbose mode ile detaylı loglama
+python -m src.analysis.risk_scoring --verbose
 
 # Risk skorlarını kontrol et
 psql -U postgres -d unesco_risk -c "SELECT COUNT(*) FROM unesco_risk.risk_scores;"
@@ -486,28 +511,89 @@ psql -U postgres -d unesco_risk -c "SELECT hs.name, rs.composite_risk_score, rs.
 
 ---
 
-### ⬜ Faz 7 — Anomali Tespiti ve Yoğunluk Analizi _(Beklemede)_
+### ✅ Faz 7 — Anomali Tespiti ve Yoğunluk Analizi _(Tamamlandı)_
 
-**Durum**: BEKLEMEDE (Faz 6'ya bağımlı)  
-**Tarih**: Gün 20-23
+**Durum**: TAMAMLANDI  
+**Tarih**: Gün 20-23  
+**Tamamlanma**: 17 Şubat 2026
 
-#### Tamamlanacak İşler:
-- [ ] `src/analysis/anomaly_detection.py` oluştur
-- [ ] `src/analysis/density_analysis.py` oluştur
-- [ ] Isolation Forest modeli
-- [ ] Kernel Density Estimation (KDE)
+#### Tamamlanan İşler:
+
+##### 7A — Anomali Tespiti (Isolation Forest) ✅
+- [x] `src/analysis/anomaly_detection.py` modülü oluşturuldu
+- [x] 6 alt-skordan özellik matrisi hazırlama (NaN → 0)
+- [x] Isolation Forest konfigürasyonu:
+  - `n_estimators=200` (ağaç sayısı)
+  - `contamination=0.1` (beklenen anomali oranı, ~10%)
+  - `random_state=42` (tekrarlanabilirlik için)
+  - `n_jobs=-1` (tüm CPU çekirdeklerini kullan)
+- [x] Model eğitimi ve anomali skorları hesaplama
+- [x] `decision_function()` → sürekli anomali skoru
+- [x] `fit_predict()` → ikili etiket (-1 = anomali, 1 = normal)
+- [x] `risk_scores` tablosuna `isolation_forest_score` ve `is_anomaly` kolonları güncelleme
+- [x] Anomali siteleri için `risk_level = "critical"` override
+- [x] CLI arayüzü (--dry-run, --verbose, --contamination)
+- [x] Birim testleri oluşturuldu (8/8 passing)
+
+##### 7B — Yoğunluk Analizi (Kernel Density Estimation) ✅
+- [x] `src/analysis/density_analysis.py` modülü oluşturuldu
+- [x] `compute_urban_kde()` fonksiyonu (sklearn.neighbors.KernelDensity)
+- [x] KDE konfigürasyonu:
+  - `bandwidth=1000` metre (EPSG:3035 projeksiyon)
+  - Gaussian kernel
+  - Euclidean metric
+- [x] Kentsel özellik merkezlerinde yoğunluk skorları hesaplama
+- [x] `urban_features` tablosuna `density_score` kolonu ekleme
+- [x] Site düzeyinde yoğunluk istatistikleri (avg, max, stddev)
+- [x] CLI arayüzü (--dry-run, --verbose, --bandwidth)
+
+#### Modül Özellikleri:
+- ✅ Isolation Forest ile çok boyutlu anomali tespiti
+- ✅ KDE ile kentsel yoğunluk haritası
+- ✅ Anomali siteleri otomatik olarak "critical" risk seviyesine yükseltilir
+- ✅ Tekrarlanabilir sonuçlar (random_state=42)
+- ✅ Ayarlanabilir kontaminasyon oranı
+- ✅ Site başına yoğunluk özet istatistikleri
+- ✅ Kapsamlı loglama ve hata yönetimi
 
 #### Test Komutları:
 ```bash
-# Anomali tespitini çalıştır
+# Birim testleri çalıştır
+python -m unittest tests.test_anomaly_detection -v
+# ✅ 8/8 tests passing
+
+# Anomali tespitini çalıştır (dry-run)
+python -m src.analysis.anomaly_detection --dry-run
+
+# Anomali tespitini çalıştır (gerçek)
 python -m src.analysis.anomaly_detection
+
+# Yoğunluk analizini çalıştır
+python -m src.analysis.density_analysis
 
 # Anomalileri kontrol et
 psql -U postgres -d unesco_risk -c "SELECT COUNT(*) FROM unesco_risk.risk_scores WHERE is_anomaly = TRUE;"
 
 # Anomali sitelerini listele
-psql -U postgres -d unesco_risk -c "SELECT hs.name, rs.isolation_forest_score FROM unesco_risk.heritage_sites hs JOIN unesco_risk.risk_scores rs ON hs.id = rs.site_id WHERE rs.is_anomaly = TRUE;"
+psql -U postgres -d unesco_risk -c "SELECT hs.name, rs.isolation_forest_score, rs.composite_risk_score, rs.risk_level FROM unesco_risk.heritage_sites hs JOIN unesco_risk.risk_scores rs ON hs.id = rs.site_id WHERE rs.is_anomaly = TRUE ORDER BY rs.isolation_forest_score ASC LIMIT 10;"
+
+# Yoğunluk skorlarını kontrol et
+psql -U postgres -d unesco_risk -c "SELECT COUNT(*) FROM unesco_risk.urban_features WHERE density_score IS NOT NULL;"
 ```
+
+#### Uygulama Notları (17 Şubat 2026):
+- **Modül Yapısı**: 
+  - risk_scoring.py: ~650 satır kod, 11 fonksiyon
+  - anomaly_detection.py: ~350 satır kod, 6 fonksiyon
+  - density_analysis.py: ~350 satır kod, 6 fonksiyon
+- **Test Coverage**: 
+  - risk_scoring: 8 test, 100% passing
+  - anomaly_detection: 8 test, 100% passing
+- **Algoritma Seçimi**: 
+  - Isolation Forest: Çok boyutlu anomali tespiti için ideal
+  - KDE: Mekansal yoğunluk analizi için standart yöntem
+- **Performans**: Batch processing ile büyük veri setleri desteklenir
+- **Next Phase**: Faz 8 (Folium Visualization) için hazır
 
 ---
 
@@ -817,4 +903,4 @@ Herhangi bir sorunla karşılaşırsanız:
 
 **Son Güncelleme**: 17 Şubat 2026  
 **Versiyon**: 1.3  
-**Aktif Faz**: Faz 4 TAMAMLANDI (Tüm ETL modülleri implementasyonu) - Hazard & Environmental Data ETL modülleri hazır
+**Aktif Faz**: Faz 6 ve 7 TAMAMLANDI (Risk Scoring & Anomaly Detection) - Tüm analiz modülleri hazır, Faz 8'e (Folium Visualization) geçilebilir

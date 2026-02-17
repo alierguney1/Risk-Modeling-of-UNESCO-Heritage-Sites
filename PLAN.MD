@@ -1679,7 +1679,7 @@ SELECT AVG(distance_to_site_km) FROM earthquake_events WHERE nearest_site_id IS 
 
 ---
 
-### ⬜ Phase 6 — Risk Scoring Engine _(Days 16–20)_
+### ✅ Phase 6 — Risk Scoring Engine _(Days 16–20)_
 
 > **Goal**: All 6 sub-scores computed for every heritage site, composite score calculated, results stored in `risk_scores`.
 
@@ -1702,7 +1702,7 @@ SELECT AVG(distance_to_site_km) FROM earthquake_events WHERE nearest_site_id IS 
 
 ---
 
-### ⬜ Phase 7 — Anomaly Detection & Density Analysis _(Days 20–23)_
+### ✅ Phase 7 — Anomaly Detection & Density Analysis _(Days 20–23)_
 
 > **Goal**: Isolation Forest identifies multi-dimensional risk outliers; KDE surfaces computed.
 
@@ -1817,8 +1817,8 @@ SELECT AVG(distance_to_site_km) FROM earthquake_events WHERE nearest_site_id IS 
 | Phase 3 | ✅ | Core ETL: UNESCO Heritage Sites | Days 5–7 |
 | Phase 4 | ✅ | ETL: Hazard & Environmental Data (Verified) | Days 7–14 |
 | Phase 5 | ✅ | CRS Transformation & Spatial Join | Days 14–16 | **COMPLETE** - Module implemented, tested (16/16 tests pass) |
-| Phase 6 | ⬜ | Risk Scoring Engine | Days 16–20 |
-| Phase 7 | ⬜ | Anomaly Detection & Density Analysis | Days 20–23 |
+| Phase 6 | ✅ | Risk Scoring Engine | Days 16–20 |
+| Phase 7 | ✅ | Anomaly Detection & Density Analysis | Days 20–23 |
 | Phase 8 | ⬜ | Folium Visualization | Days 23–26 |
 | Phase 9 | ⬜ | Airflow DAG Integration | Days 26–30 |
 | Phase 10 | ⬜ | Testing & Quality Assurance | Days 30–35 |
