@@ -145,8 +145,10 @@ pytest --cov=src tests/
 
 ## 📖 Documentation
 
-- **[STATUS.md](./STATUS.md)** - Application status tracking with test commands (Turkish/English)
 - **[PLAN.MD](./PLAN.MD)** - Detailed technical architecture and implementation plan
+- **[STATUS.md](./STATUS.md)** - Application status tracking with test commands (Turkish/English)
+- **[docs/PHASE5_GUIDE.md](./docs/PHASE5_GUIDE.md)** - Phase 5: CRS Transformation & Spatial Join usage guide
+- **[docs/PHASE5_SUMMARY.md](./docs/PHASE5_SUMMARY.md)** - Phase 5 implementation summary
 - **[.env.example](./.env.example)** - Environment variables template
 
 ## 🛠 Technology Stack
@@ -180,4 +182,5 @@ For questions or issues, please open a GitHub issue.
 ---
 
 **Last Updated**: February 17, 2026  
-**Current Phase**: Phase 3 Complete - UNESCO Heritage Sites ETL
+**Current Phase**: Phase 5 Complete - CRS Transformation & Spatial Join  
+**Status**: ✅ Ready for Phase 6 (Risk Scoring Engine)
