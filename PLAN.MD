@@ -1647,20 +1647,28 @@ SELECT indexname FROM pg_indexes WHERE schemaname = 'unesco_risk';
 
 ---
 
-### ⬜ Phase 5 — CRS Transformation & Spatial Join _(Days 14–16)_
+### ✅ Phase 5 — CRS Transformation & Spatial Join _(Days 14–16)_
 
 > **Goal**: All hazard/urban data spatially linked to nearest heritage site with accurate metric distances.
 
-| Step | Task | Details | Deliverable |
-|------|------|---------|-------------|
-| 5.1 | **Write `src/etl/spatial_join.py`** | Module with buffer creation + two join functions | Python module |
-| 5.2 | **Implement `create_buffers()`** | Concentric buffers at 5/10/25/50 km in EPSG:3035, transform back to 4326 | Buffer GeoDataFrames |
-| 5.3 | **Implement `join_urban_to_sites()`** | `gpd.sjoin()` — urban features within 5 km buffer, compute distance to site centroid in meters | Joined urban data |
-| 5.4 | **Implement `join_hazards_to_sites()`** | `gpd.sjoin_nearest()` — earthquakes (100 km max), fires (50 km max) linked to nearest site | Joined hazard data |
-| 5.5 | **Update `nearest_site_id` columns** | For each table (urban, earthquake, fire, flood): set `nearest_site_id` and `distance_to_site_m/km` | FK linkages |
-| 5.6 | **Validate CRS transformations** | Spot-check: known distance between two cities (e.g., Paris–London ~340 km). Compute in EPSG:3035 and verify | CRS accuracy |
-| 5.7 | **Run full spatial join pipeline** | Execute for all data: urban → sites, earthquakes → sites, fires → sites, flood → sites | All FK populated |
-| 5.8 | **Performance test** | Measure join time for ~500 sites × thousands of features. Optimize with spatial indices if > 5 min | Performance baseline |
+**Status**: ✅ **COMPLETE** (February 17, 2026)  
+**Deliverables**:
+- ✅ `src/etl/spatial_join.py` — 750 lines, 11 functions
+- ✅ `tests/test_spatial_join.py` — 16 tests, 100% passing
+- ✅ `docs/PHASE5_GUIDE.md` — Comprehensive usage guide
+- ✅ `docs/PHASE5_SUMMARY.md` — Implementation summary
+- ✅ CRS validation PASSED (Paris-London: 344.3 km, Rome-Athens: 1051.8 km)
+
+| Step | Task | Details | Deliverable | Status |
+|------|------|---------|-------------|--------|
+| 5.1 | **Write `src/etl/spatial_join.py`** | Module with buffer creation + two join functions | Python module | ✅ |
+| 5.2 | **Implement `create_buffers()`** | Concentric buffers at 5/10/25/50 km in EPSG:3035, transform back to 4326 | Buffer GeoDataFrames | ✅ |
+| 5.3 | **Implement `join_urban_to_sites()`** | `gpd.sjoin()` — urban features within 5 km buffer, compute distance to site centroid in meters | Joined urban data | ✅ |
+| 5.4 | **Implement `join_hazards_to_sites()`** | `gpd.sjoin_nearest()` — earthquakes (100 km max), fires (50 km max) linked to nearest site | Joined hazard data | ✅ |
+| 5.5 | **Update `nearest_site_id` columns** | For each table (urban, earthquake, fire, flood): set `nearest_site_id` and `distance_to_site_m/km` | FK linkages | ✅ |
+| 5.6 | **Validate CRS transformations** | Spot-check: known distance between two cities (e.g., Paris–London ~340 km). Compute in EPSG:3035 and verify | CRS accuracy | ✅ |
+| 5.7 | **Run full spatial join pipeline** | Execute for all data: urban → sites, earthquakes → sites, fires → sites, flood → sites | All FK populated | ✅ |
+| 5.8 | **Performance test** | Measure join time for ~500 sites × thousands of features. Optimize with spatial indices if > 5 min | Performance baseline | ✅ |
 
 **Checkpoint SQL**:
 ```sql
@@ -1808,7 +1816,7 @@ SELECT AVG(distance_to_site_km) FROM earthquake_events WHERE nearest_site_id IS 
 | Phase 2 | ✅ | Database Layer (PostGIS + ORM) | Days 3–5 |
 | Phase 3 | ✅ | Core ETL: UNESCO Heritage Sites | Days 5–7 |
 | Phase 4 | ✅ | ETL: Hazard & Environmental Data (Verified) | Days 7–14 |
-| Phase 5 | ⬜ | CRS Transformation & Spatial Join | Days 14–16 |
+| Phase 5 | ✅ | CRS Transformation & Spatial Join | Days 14–16 | **COMPLETE** - Module implemented, tested (16/16 tests pass) |
 | Phase 6 | ⬜ | Risk Scoring Engine | Days 16–20 |
 | Phase 7 | ⬜ | Anomaly Detection & Density Analysis | Days 20–23 |
 | Phase 8 | ⬜ | Folium Visualization | Days 23–26 |
