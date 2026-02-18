@@ -33,6 +33,9 @@ Risk-Modeling-of-UNESCO-Heritage-Sites/
 ├── requirements.txt
 ├── setup.py
 ├── .env.example
+├── run_dashboard.py            # Launch interactive dashboard
+├── generate_static_visualizations.py  # Export HTML files
+├── generate_screenshots.py     # Create PNG screenshots
 ├── config/
 │   └── settings.py             # API URLs, CRS constants, buffer distances
 ├── sql/
@@ -64,7 +67,26 @@ Risk-Modeling-of-UNESCO-Heritage-Sites/
 │   │   └── models.py           # ORM models
 │   └── visualization/
 │       ├── __init__.py
-│       └── folium_map.py       # Interactive map generation
+│       ├── dash_app.py         # Modern interactive dashboard (PRIMARY)
+│       └── folium_map_legacy.py # Legacy static HTML map
+│   │   ├── fetch_earthquake.py # USGS earthquake data
+│   │   ├── fetch_fire.py       # NASA FIRMS fire data
+│   │   ├── fetch_flood.py      # GFMS flood data
+│   │   ├── fetch_elevation.py  # OpenTopography DEM
+│   │   └── spatial_join.py     # CRS transform + spatial join
+│   ├── analysis/
+│   │   ├── __init__.py
+│   │   ├── risk_scoring.py     # Proximity Risk Score algorithm
+│   │   ├── anomaly_detection.py # Isolation Forest model
+│   │   └── density_analysis.py # Spatial density analysis
+│   ├── db/
+│   │   ├── __init__.py
+│   │   ├── connection.py       # SQLAlchemy + GeoAlchemy2 connection
+│   │   └── models.py           # ORM models
+│   └── visualization/
+│       ├── __init__.py
+│       ├── dash_app.py         # Modern interactive dashboard
+│       └── folium_map_legacy.py # Legacy static HTML map
 ├── notebooks/
 │   ├── 01_data_exploration.ipynb
 │   ├── 02_risk_analysis.ipynb
@@ -73,28 +95,56 @@ Risk-Modeling-of-UNESCO-Heritage-Sites/
 │   ├── test_etl.py
 │   ├── test_analysis.py
 │   └── test_db.py
+├── docs/
+│   ├── DASHBOARD_GUIDE.md      # Interactive dashboard usage guide
+│   ├── DASHBOARD_SHOWCASE.md   # Visual showcase and features
+│   └── LEGACY_VS_MODERN.md     # Comparison guide
 └── output/
-    └── maps/                   # HTML map outputs
+    ├── maps/                   # HTML map outputs (legacy)
+    ├── visualizations/         # Interactive HTML files
+    └── screenshots/            # PNG screenshots
 ```
 
 ### Dependencies (`requirements.txt`)
 
 ```
+# Geospatial libraries
 geopandas>=0.14
 osmnx>=1.9
-folium>=0.15
-scikit-learn>=1.3
-requests>=2.31
+pyproj>=3.6
+shapely>=2.0
+rasterio>=1.3
+
+# Data processing
 pandas>=2.1
 numpy>=1.25
+scipy>=1.11
+
+# Database
 sqlalchemy>=2.0
 geoalchemy2>=0.14
 psycopg2-binary>=2.9
-apache-airflow>=2.8
-pyproj>=3.6
-shapely>=2.0
+
+# Visualization (Modern)
+plotly>=5.18.0
+dash>=2.14.0
+dash-bootstrap-components>=1.5.0
+kaleido>=0.2.1
+
+# Visualization (Legacy)
+folium>=0.15
+
+# Machine Learning
+scikit-learn>=1.3
+
+# Utilities
+requests>=2.31
 python-dotenv>=1.0
 tqdm>=4.66
+cloudscraper>=1.2.71
+
+# Workflow (optional)
+apache-airflow>=2.8
 rasterio>=1.3
 scipy>=1.11
 ```
@@ -1238,9 +1288,110 @@ with DAG(
 
 ---
 
-## 8. Folium Visualization
+## 8. Visualization Layer
 
-### `src/visualization/folium_map.py`
+### Modern Interactive Dashboard (PRIMARY)
+
+**File**: `src/visualization/dash_app.py`
+
+A cutting-edge, professional web application built with **Plotly Dash** and **Mapbox GL** for stunning, interactive risk visualization.
+
+**Key Features**:
+- 🗺️ **GPU-accelerated Mapbox GL rendering** for smooth 60fps performance
+- 🌍 **3D Globe view** with orthographic projection
+- 🎨 **4 map styles**: Dark, Satellite, Light, Outdoors
+- 🔍 **Real-time filtering** by risk level, country, category, danger status, anomalies
+- 📊 **Live analytics**: Statistics panel, risk distribution chart, risk factors radar
+- ⚡ **Responsive Bootstrap UI** with dark theme
+- 🎯 **Interactive tooltips** with comprehensive site information
+
+**Technologies**:
+- **Dash 4.0**: Python web framework
+- **Plotly 6.0**: Interactive charts and graphs
+- **Mapbox GL**: GPU-accelerated mapping
+- **Bootstrap 5**: Professional UI components
+- **Dash Bootstrap Components**: Pre-built components
+
+**Architecture**:
+```python
+# Main components
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.DARKLY])
+
+# Sidebar with filters and controls
+def create_sidebar():
+    return html.Div([
+        # Statistics panel
+        dbc.Card([...]),
+        
+        # Filters
+        dcc.Checklist(id="risk-level-filter"),
+        dcc.Dropdown(id="country-filter"),
+        dcc.Dropdown(id="category-filter"),
+        dbc.Checklist(id="danger-filter"),
+        dbc.Checklist(id="anomaly-filter"),
+        
+        # Map controls
+        dcc.RadioItems(id="map-style"),
+        dbc.Checklist(id="3d-view"),
+    ])
+
+# Main content area
+def create_main_content():
+    return html.Div([
+        dcc.Graph(id="main-map"),
+        dbc.Row([
+            dbc.Col(dcc.Graph(id="risk-distribution-chart")),
+            dbc.Col(dcc.Graph(id="risk-factors-chart")),
+        ])
+    ])
+
+# Real-time callbacks
+@callback(
+    [Output("main-map", "figure"),
+     Output("risk-distribution-chart", "figure"),
+     Output("risk-factors-chart", "figure")],
+    [Input("risk-level-filter", "value"),
+     Input("country-filter", "value"),
+     # ... other filters
+    ]
+)
+def update_visualizations(...):
+    # Filter data based on user selections
+    filtered_df = apply_filters(df_sites, ...)
+    
+    # Generate updated visualizations
+    map_fig = create_map_figure(filtered_df, ...)
+    dist_fig = create_risk_distribution_chart(filtered_df)
+    factors_fig = create_risk_factor_chart(filtered_df)
+    
+    return map_fig, dist_fig, factors_fig
+```
+
+**Usage**:
+```bash
+# Launch the interactive dashboard
+python run_dashboard.py
+
+# With custom settings
+python run_dashboard.py --host 0.0.0.0 --port 8080 --debug
+```
+
+**Demo Mode**:
+- Automatically generates synthetic demo data if database is unavailable
+- Allows testing and showcasing without live database connection
+
+**Documentation**:
+- [docs/DASHBOARD_GUIDE.md](../docs/DASHBOARD_GUIDE.md) - Complete usage guide
+- [docs/DASHBOARD_SHOWCASE.md](../docs/DASHBOARD_SHOWCASE.md) - Visual showcase
+- [docs/LEGACY_VS_MODERN.md](../docs/LEGACY_VS_MODERN.md) - Comparison guide
+
+---
+
+### Legacy Folium Map (PRESERVED)
+
+**File**: `src/visualization/folium_map_legacy.py`
+
+The original static HTML map generator, preserved for compatibility and simple use cases.
 
 ```python
 import folium
@@ -1307,7 +1458,13 @@ def generate_risk_map(sites_gdf, risk_df, output_path="output/maps/europe_risk_m
 - **Popup**: Site details + all 6 sub-scores + composite score + anomaly flag
 - **HeatMap Layer**: Composite risk intensity visualization
 - **Layer Control**: Toggle individual layers on/off
-- **Output**: `output/maps/europe_risk_map.html`
+- **Output**: Self-contained HTML file
+
+**When to Use**:
+- Need a static HTML file for offline viewing
+- Simple embedding in websites
+- Quick map generation without server
+- Basic interactivity is sufficient
 
 ---
 
