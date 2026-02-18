@@ -2,7 +2,7 @@
 Anomaly Detection for UNESCO Heritage Sites Risk Analysis.
 
 This module implements Isolation Forest to detect multi-dimensional risk outliers.
-Sites flagged as anomalies have their risk_level overridden to "critical" regardless
+Sites flagged as anomalies have their is_anomaly flag set to TRUE.
 of their composite risk score.
 
 Isolation Forest parameters:
@@ -189,10 +189,10 @@ def update_anomaly_flags(scores_df: pd.DataFrame, session) -> int:
                 # Update is_anomaly flag
                 risk_score.is_anomaly = bool(row['is_anomaly'])
                 
-                # Override risk level for anomalies
+                # Do NOT override risk_level — anomaly is a flag, not a risk level
+                # risk_level is determined by composite_risk_score in risk_scoring.py
                 if row['is_anomaly']:
-                    risk_score.risk_level = 'critical'
-                    logger.debug(f"Site {row['site_id']}: Anomaly detected, risk_level → critical")
+                    logger.debug(f"Site {row['site_id']}: Anomaly detected (is_anomaly=True)")
                 
                 records_updated += 1
             else:

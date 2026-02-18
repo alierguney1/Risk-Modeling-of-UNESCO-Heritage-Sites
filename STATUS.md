@@ -461,13 +461,14 @@ CRS transformation validation PASSED
 #### Tamamlanan İşler:
 - [x] `src/analysis/risk_scoring.py` modülü oluşturuldu
 - [x] 6 risk kategorisi hesaplama fonksiyonları implementasyonu:
-  - `compute_urban_density_score()` — Kentsel yoğunluk riski (5km buffer içinde bina sayısı + alan)
+  - `compute_urban_density_score()` — Kentsel yoğunluk riski (10km buffer içinde bina sayısı + alan)
   - `compute_climate_anomaly_score()` — İklim anomalisi riski (Z-skor analizi, aşırı hava olayları)
-  - `compute_seismic_risk_score()` — Sismik risk (Gutenberg-Richter enerji formülü, 50km buffer)
-  - `compute_fire_risk_score()` — Yangın riski (FRP × confidence / distance, 25km buffer)
-  - `compute_flood_risk_score()` — Sel riski (GFMS + tarihi sel sıklığı, 50km buffer)
+  - `compute_seismic_risk_score()` — Sismik risk (Gutenberg-Richter enerji formülü, ST_DWithin 200km)
+  - `compute_fire_risk_score()` — Yangın riski (FRP × confidence / distance, ST_DWithin 100km)
+  - `compute_flood_risk_score()` — Sel riski (GFMS + tarihi sel sıklığı, ST_DWithin 100km)
   - `compute_coastal_risk_score()` — Kıyı riski (max(0, 1 - elevation/10) kıyı siteleri için)
-- [x] Min-Max normalizasyon (sklearn.preprocessing.MinMaxScaler)
+- [x] **log1p + Min-Max normalizasyon** (outlier baskılama önlendi)
+- [x] **ST_DWithin many-to-many spatial join** (nearest_site_id yerine, tüm olaylar yarıçap içinde)
 - [x] `compute_composite_score()` — Ağırlıklı ortalama + risk seviyesi atama
 - [x] Risk seviyeleri: low (0-0.25), medium (0.25-0.50), high (0.50-0.75), critical (0.75-1.0)
 - [x] UPSERT ile `risk_scores` tablosuna kayıt
@@ -476,7 +477,8 @@ CRS transformation validation PASSED
 - [x] Birim testleri oluşturuldu (8/8 passing)
 
 #### Modül Özellikleri:
-- ✅ 6 alt-skor hesaplama fonksiyonu
+- ✅ **log1p + Min-Max normalizasyon** (outlier baskılama önlendi, daha anlamlı skor dağılımı)
+- ✅ **ST_DWithin many-to-many spatial join** (earthquake 253→427 site, fire 136→geniş kapsam)
 - ✅ Tüm skorlar [0, 1] aralığında normalize edilir
 - ✅ Kompozit skor: DEFAULT_WEIGHTS ile ağırlıklı ortalama
 - ✅ Risk ağırlıkları yapılandırılabilir (config/settings.py)
@@ -550,7 +552,7 @@ psql -U postgres -d unesco_risk -c "SELECT hs.name, rs.composite_risk_score, rs.
 #### Modül Özellikleri:
 - ✅ Isolation Forest ile çok boyutlu anomali tespiti
 - ✅ KDE ile kentsel yoğunluk haritası
-- ✅ Anomali siteleri otomatik olarak "critical" risk seviyesine yükseltilir
+- ✅ Anomali siteleri `is_anomaly=TRUE` olarak işaretlenir (risk_level bağımsız kalır)
 - ✅ Tekrarlanabilir sonuçlar (random_state=42)
 - ✅ Ayarlanabilir kontaminasyon oranı
 - ✅ Site başına yoğunluk özet istatistikleri
@@ -597,17 +599,21 @@ psql -U postgres -d unesco_risk -c "SELECT COUNT(*) FROM unesco_risk.urban_featu
 
 ---
 
-### ⬜ Faz 8 — Folium Görselleştirme _(Beklemede)_
+### ✅ Faz 8 — Folium Görselleştirme _(Tamamlandı)_
 
-**Durum**: BEKLEMEDE (Faz 7'ye bağımlı)  
-**Tarih**: Gün 23-26
+**Durum**: TAMAMLANDI  
+**Tarih**: 18 Şubat 2026
 
-#### Tamamlanacak İşler:
-- [ ] `src/visualization/folium_map.py` oluştur
-- [ ] İnteraktif harita oluşturma
-- [ ] Risk seviyesine göre renklendirme
-- [ ] Popup bilgileri
-- [ ] Harita katmanları (sites, hazards, density)
+#### Tamamlanan İşler:
+- [x] `src/visualization/folium_map.py` oluşturuldu
+- [x] İnteraktif harita oluşturma (556 site)
+- [x] Risk seviyesine göre CircleMarker renklendirme (critical=red, high=orange, medium=yellow, low=green)
+- [x] Popup HTML — site adı, ülke, kategori, 6 alt-skor, composite skor, anomaly flag ⚠️
+- [x] HeatMap katmanı (composite risk skorlarıyla ağırlıklı)
+- [x] MarkerCluster yoğun bölgeler için
+- [x] LayerControl ile katman açma/kapama
+- [x] Custom HTML legend
+- [x] `output/maps/europe_risk_map.html` kaydedildi (1.6 MB)
 
 #### Test Komutları:
 ```bash
@@ -901,6 +907,6 @@ Herhangi bir sorunla karşılaşırsanız:
 
 ---
 
-**Son Güncelleme**: 17 Şubat 2026  
-**Versiyon**: 1.3  
-**Aktif Faz**: Faz 6 ve 7 TAMAMLANDI (Risk Scoring & Anomaly Detection) - Tüm analiz modülleri hazır, Faz 8'e (Folium Visualization) geçilebilir
+**Son Güncelleme**: 18 Şubat 2026  
+**Versiyon**: 1.5  
+**Aktif Faz**: Faz 8 TAMAMLANDI — Risk skorları düzeltildi (log1p + ST_DWithin), harita güncellendi. Skor dağılımı: 536 low, 19 medium, 1 high. 56 anomali tespit edildi. Faz 9'a (Airflow DAG) geçilebilir

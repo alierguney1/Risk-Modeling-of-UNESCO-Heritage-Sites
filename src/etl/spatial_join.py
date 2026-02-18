@@ -235,7 +235,10 @@ def join_hazards_to_sites(
 
 def update_urban_features_distances(session, verbose: bool = True) -> int:
     """
-    Update nearest_site_id and distance_to_site_m for all urban features.
+    Update distance_to_site_m for all urban features using PostGIS.
+    nearest_site_id is already populated by the OSM ETL.
+    
+    Uses ST_Transform + ST_Distance for accurate metric distance in EPSG:3035.
     
     Args:
         session: Database session
@@ -244,73 +247,31 @@ def update_urban_features_distances(session, verbose: bool = True) -> int:
     Returns:
         Number of urban features updated
     """
-    logger.info("Updating urban features with spatial joins...")
+    logger.info("Updating urban features distances using PostGIS...")
     
-    # Load heritage sites from database
-    sites_query = "SELECT id, whc_id, name, ST_AsText(geom) as geom_wkt FROM unesco_risk.heritage_sites"
-    sites_df = pd.read_sql(sites_query, session.bind)
+    update_sql = text("""
+        UPDATE unesco_risk.urban_features uf
+        SET distance_to_site_m = ST_Distance(
+                ST_Transform(uf.geom, 3035),
+                ST_Transform(hs.geom, 3035)
+            )
+        FROM unesco_risk.heritage_sites hs
+        WHERE uf.nearest_site_id = hs.id
+          AND uf.nearest_site_id IS NOT NULL;
+    """)
     
-    if sites_df.empty:
-        logger.error("No heritage sites found in database")
-        return 0
+    result = session.execute(update_sql)
+    updated_count = result.rowcount
+    session.commit()
     
-    # Convert to GeoDataFrame
-    sites_df['geometry'] = sites_df['geom_wkt'].apply(lambda x: Point([float(c) for c in x.replace('POINT(', '').replace(')', '').split()]))
-    sites_gdf = gpd.GeoDataFrame(sites_df, geometry='geometry', crs=CRS_WGS84)
-    
-    # Load urban features
-    urban_query = "SELECT id, osm_id, feature_type, ST_AsText(geom) as geom_wkt FROM unesco_risk.urban_features"
-    urban_df = pd.read_sql(urban_query, session.bind)
-    
-    if urban_df.empty:
-        logger.warning("No urban features found in database")
-        return 0
-    
-    logger.info(f"Processing {len(urban_df)} urban features...")
-    
-    # Process in batches to avoid memory issues
-    batch_size = 1000
-    updated_count = 0
-    
-    for i in tqdm(range(0, len(urban_df), batch_size), desc="Processing urban features", disable=not verbose):
-        batch = urban_df.iloc[i:i+batch_size].copy()
-        
-        # Convert to GeoDataFrame
-        from shapely import wkt
-        batch['geometry'] = batch['geom_wkt'].apply(wkt.loads)
-        batch_gdf = gpd.GeoDataFrame(batch, geometry='geometry', crs=CRS_WGS84)
-        
-        # Perform spatial join
-        joined = join_urban_to_sites(batch_gdf, sites_gdf, buffer_m=BUFFER_DISTANCES['urban'])
-        
-        if joined.empty:
-            continue
-        
-        # Update database
-        for idx, row in joined.iterrows():
-            if pd.notna(row.get('nearest_site_id')) and pd.notna(row.get('distance_to_site_m')):
-                update_sql = text("""
-                    UPDATE unesco_risk.urban_features
-                    SET nearest_site_id = :site_id,
-                        distance_to_site_m = :distance
-                    WHERE id = :feature_id
-                """)
-                session.execute(update_sql, {
-                    'site_id': int(row['nearest_site_id']),
-                    'distance': float(row['distance_to_site_m']),
-                    'feature_id': int(row['id'])
-                })
-                updated_count += 1
-        
-        session.commit()
-    
-    logger.info(f"Updated {updated_count} urban features")
+    logger.info(f"Updated distances for {updated_count} urban features")
     return updated_count
 
 
 def update_earthquake_distances(session, verbose: bool = True) -> int:
     """
-    Update nearest_site_id and distance_to_site_km for all earthquake events.
+    Update nearest_site_id and distance_to_site_km for all earthquake events
+    using PostGIS lateral cross-join (nearest neighbor).
     
     Args:
         session: Database session
@@ -319,72 +280,46 @@ def update_earthquake_distances(session, verbose: bool = True) -> int:
     Returns:
         Number of earthquake events updated
     """
-    logger.info("Updating earthquake events with spatial joins...")
+    logger.info("Updating earthquake events with PostGIS nearest-neighbor join...")
     
-    # Load heritage sites
-    sites_query = "SELECT id, whc_id, name, ST_AsText(geom) as geom_wkt FROM unesco_risk.heritage_sites"
-    sites_df = pd.read_sql(sites_query, session.bind)
+    update_sql = text("""
+        WITH nearest AS (
+            SELECT DISTINCT ON (ee.id)
+                ee.id AS event_id,
+                hs.id AS site_id,
+                ST_Distance(
+                    ST_Transform(ee.geom, 3035),
+                    ST_Transform(hs.geom, 3035)
+                ) / 1000.0 AS dist_km
+            FROM unesco_risk.earthquake_events ee
+            CROSS JOIN LATERAL (
+                SELECT id, geom
+                FROM unesco_risk.heritage_sites
+                ORDER BY ee.geom <-> geom
+                LIMIT 1
+            ) hs
+        )
+        UPDATE unesco_risk.earthquake_events ee
+        SET nearest_site_id = n.site_id,
+            distance_to_site_km = n.dist_km
+        FROM nearest n
+        WHERE ee.id = n.event_id
+          AND n.dist_km <= :max_dist_km;
+    """)
     
-    if sites_df.empty:
-        logger.error("No heritage sites found in database")
-        return 0
-    
-    # Convert to GeoDataFrame
-    sites_df['geometry'] = sites_df['geom_wkt'].apply(lambda x: Point([float(c) for c in x.replace('POINT(', '').replace(')', '').split()]))
-    sites_gdf = gpd.GeoDataFrame(sites_df, geometry='geometry', crs=CRS_WGS84)
-    
-    # Load earthquake events
-    eq_query = "SELECT id, usgs_id, magnitude, ST_AsText(geom) as geom_wkt FROM unesco_risk.earthquake_events"
-    eq_df = pd.read_sql(eq_query, session.bind)
-    
-    if eq_df.empty:
-        logger.warning("No earthquake events found in database")
-        return 0
-    
-    logger.info(f"Processing {len(eq_df)} earthquake events...")
-    
-    # Convert to GeoDataFrame
-    from shapely import wkt
-    eq_df['geometry'] = eq_df['geom_wkt'].apply(wkt.loads)
-    eq_gdf = gpd.GeoDataFrame(eq_df, geometry='geometry', crs=CRS_WGS84)
-    
-    # Perform spatial join
-    joined = join_hazards_to_sites(
-        eq_gdf, 
-        sites_gdf, 
-        max_distance_m=BUFFER_DISTANCES['earthquake'],
-        hazard_type='earthquake'
-    )
-    
-    if joined.empty:
-        logger.warning("No earthquake events found within buffer distance")
-        return 0
-    
-    # Update database
-    updated_count = 0
-    for idx, row in tqdm(joined.iterrows(), total=len(joined), desc="Updating earthquakes", disable=not verbose):
-        if pd.notna(row.get('nearest_site_id')) and pd.notna(row.get('distance_to_site_km')):
-            update_sql = text("""
-                UPDATE unesco_risk.earthquake_events
-                SET nearest_site_id = :site_id,
-                    distance_to_site_km = :distance
-                WHERE id = :event_id
-            """)
-            session.execute(update_sql, {
-                'site_id': int(row['nearest_site_id']),
-                'distance': float(row['distance_to_site_km']),
-                'event_id': int(row['id'])
-            })
-            updated_count += 1
-    
+    max_dist_km = BUFFER_DISTANCES['earthquake'] / 1000.0
+    result = session.execute(update_sql, {'max_dist_km': max_dist_km})
+    updated_count = result.rowcount
     session.commit()
-    logger.info(f"Updated {updated_count} earthquake events")
+    
+    logger.info(f"Updated {updated_count} earthquake events (within {max_dist_km} km)")
     return updated_count
 
 
 def update_fire_distances(session, verbose: bool = True) -> int:
     """
-    Update nearest_site_id and distance_to_site_km for all fire events.
+    Update nearest_site_id and distance_to_site_km for all fire events
+    using PostGIS lateral cross-join (nearest neighbor).
     
     Args:
         session: Database session
@@ -393,72 +328,46 @@ def update_fire_distances(session, verbose: bool = True) -> int:
     Returns:
         Number of fire events updated
     """
-    logger.info("Updating fire events with spatial joins...")
+    logger.info("Updating fire events with PostGIS nearest-neighbor join...")
     
-    # Load heritage sites
-    sites_query = "SELECT id, whc_id, name, ST_AsText(geom) as geom_wkt FROM unesco_risk.heritage_sites"
-    sites_df = pd.read_sql(sites_query, session.bind)
+    update_sql = text("""
+        WITH nearest AS (
+            SELECT DISTINCT ON (fe.id)
+                fe.id AS event_id,
+                hs.id AS site_id,
+                ST_Distance(
+                    ST_Transform(fe.geom, 3035),
+                    ST_Transform(hs.geom, 3035)
+                ) / 1000.0 AS dist_km
+            FROM unesco_risk.fire_events fe
+            CROSS JOIN LATERAL (
+                SELECT id, geom
+                FROM unesco_risk.heritage_sites
+                ORDER BY fe.geom <-> geom
+                LIMIT 1
+            ) hs
+        )
+        UPDATE unesco_risk.fire_events fe
+        SET nearest_site_id = n.site_id,
+            distance_to_site_km = n.dist_km
+        FROM nearest n
+        WHERE fe.id = n.event_id
+          AND n.dist_km <= :max_dist_km;
+    """)
     
-    if sites_df.empty:
-        logger.error("No heritage sites found in database")
-        return 0
-    
-    # Convert to GeoDataFrame
-    sites_df['geometry'] = sites_df['geom_wkt'].apply(lambda x: Point([float(c) for c in x.replace('POINT(', '').replace(')', '').split()]))
-    sites_gdf = gpd.GeoDataFrame(sites_df, geometry='geometry', crs=CRS_WGS84)
-    
-    # Load fire events
-    fire_query = "SELECT id, satellite, brightness, frp, ST_AsText(geom) as geom_wkt FROM unesco_risk.fire_events"
-    fire_df = pd.read_sql(fire_query, session.bind)
-    
-    if fire_df.empty:
-        logger.warning("No fire events found in database")
-        return 0
-    
-    logger.info(f"Processing {len(fire_df)} fire events...")
-    
-    # Convert to GeoDataFrame
-    from shapely import wkt
-    fire_df['geometry'] = fire_df['geom_wkt'].apply(wkt.loads)
-    fire_gdf = gpd.GeoDataFrame(fire_df, geometry='geometry', crs=CRS_WGS84)
-    
-    # Perform spatial join
-    joined = join_hazards_to_sites(
-        fire_gdf,
-        sites_gdf,
-        max_distance_m=BUFFER_DISTANCES['fire'],
-        hazard_type='fire'
-    )
-    
-    if joined.empty:
-        logger.warning("No fire events found within buffer distance")
-        return 0
-    
-    # Update database
-    updated_count = 0
-    for idx, row in tqdm(joined.iterrows(), total=len(joined), desc="Updating fires", disable=not verbose):
-        if pd.notna(row.get('nearest_site_id')) and pd.notna(row.get('distance_to_site_km')):
-            update_sql = text("""
-                UPDATE unesco_risk.fire_events
-                SET nearest_site_id = :site_id,
-                    distance_to_site_km = :distance
-                WHERE id = :event_id
-            """)
-            session.execute(update_sql, {
-                'site_id': int(row['nearest_site_id']),
-                'distance': float(row['distance_to_site_km']),
-                'event_id': int(row['id'])
-            })
-            updated_count += 1
-    
+    max_dist_km = BUFFER_DISTANCES['fire'] / 1000.0
+    result = session.execute(update_sql, {'max_dist_km': max_dist_km})
+    updated_count = result.rowcount
     session.commit()
-    logger.info(f"Updated {updated_count} fire events")
+    
+    logger.info(f"Updated {updated_count} fire events (within {max_dist_km} km)")
     return updated_count
 
 
 def update_flood_distances(session, verbose: bool = True) -> int:
     """
-    Update nearest_site_id and distance_to_site_km for all flood zones.
+    Update nearest_site_id and distance_to_site_km for all flood zones
+    using PostGIS lateral cross-join (nearest neighbor).
     
     Args:
         session: Database session
@@ -467,66 +376,39 @@ def update_flood_distances(session, verbose: bool = True) -> int:
     Returns:
         Number of flood zones updated
     """
-    logger.info("Updating flood zones with spatial joins...")
+    logger.info("Updating flood zones with PostGIS nearest-neighbor join...")
     
-    # Load heritage sites
-    sites_query = "SELECT id, whc_id, name, ST_AsText(geom) as geom_wkt FROM unesco_risk.heritage_sites"
-    sites_df = pd.read_sql(sites_query, session.bind)
+    update_sql = text("""
+        WITH nearest AS (
+            SELECT DISTINCT ON (fz.id)
+                fz.id AS zone_id,
+                hs.id AS site_id,
+                ST_Distance(
+                    ST_Transform(fz.geom, 3035),
+                    ST_Transform(hs.geom, 3035)
+                ) / 1000.0 AS dist_km
+            FROM unesco_risk.flood_zones fz
+            CROSS JOIN LATERAL (
+                SELECT id, geom
+                FROM unesco_risk.heritage_sites
+                ORDER BY fz.geom <-> geom
+                LIMIT 1
+            ) hs
+        )
+        UPDATE unesco_risk.flood_zones fz
+        SET nearest_site_id = n.site_id,
+            distance_to_site_km = n.dist_km
+        FROM nearest n
+        WHERE fz.id = n.zone_id
+          AND n.dist_km <= :max_dist_km;
+    """)
     
-    if sites_df.empty:
-        logger.error("No heritage sites found in database")
-        return 0
-    
-    # Convert to GeoDataFrame
-    sites_df['geometry'] = sites_df['geom_wkt'].apply(lambda x: Point([float(c) for c in x.replace('POINT(', '').replace(')', '').split()]))
-    sites_gdf = gpd.GeoDataFrame(sites_df, geometry='geometry', crs=CRS_WGS84)
-    
-    # Load flood zones
-    flood_query = "SELECT id, event_date, flood_intensity, ST_AsText(geom) as geom_wkt FROM unesco_risk.flood_zones WHERE geom IS NOT NULL"
-    flood_df = pd.read_sql(flood_query, session.bind)
-    
-    if flood_df.empty:
-        logger.warning("No flood zones found in database")
-        return 0
-    
-    logger.info(f"Processing {len(flood_df)} flood zones...")
-    
-    # Convert to GeoDataFrame
-    from shapely import wkt
-    flood_df['geometry'] = flood_df['geom_wkt'].apply(wkt.loads)
-    flood_gdf = gpd.GeoDataFrame(flood_df, geometry='geometry', crs=CRS_WGS84)
-    
-    # Perform spatial join
-    joined = join_hazards_to_sites(
-        flood_gdf,
-        sites_gdf,
-        max_distance_m=BUFFER_DISTANCES['flood'],
-        hazard_type='flood'
-    )
-    
-    if joined.empty:
-        logger.warning("No flood zones found within buffer distance")
-        return 0
-    
-    # Update database
-    updated_count = 0
-    for idx, row in tqdm(joined.iterrows(), total=len(joined), desc="Updating floods", disable=not verbose):
-        if pd.notna(row.get('nearest_site_id')) and pd.notna(row.get('distance_to_site_km')):
-            update_sql = text("""
-                UPDATE unesco_risk.flood_zones
-                SET nearest_site_id = :site_id,
-                    distance_to_site_km = :distance
-                WHERE id = :zone_id
-            """)
-            session.execute(update_sql, {
-                'site_id': int(row['nearest_site_id']),
-                'distance': float(row['distance_to_site_km']),
-                'zone_id': int(row['id'])
-            })
-            updated_count += 1
-    
+    max_dist_km = BUFFER_DISTANCES['flood'] / 1000.0
+    result = session.execute(update_sql, {'max_dist_km': max_dist_km})
+    updated_count = result.rowcount
     session.commit()
-    logger.info(f"Updated {updated_count} flood zones")
+    
+    logger.info(f"Updated {updated_count} flood zones (within {max_dist_km} km)")
     return updated_count
 
 

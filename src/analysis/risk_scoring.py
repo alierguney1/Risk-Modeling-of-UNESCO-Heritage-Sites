@@ -2,14 +2,14 @@
 Risk Scoring Engine for UNESCO Heritage Sites.
 
 This module computes 6 sub-scores for each heritage site:
-1. Urban Density Score — based on building count and footprint area within 5km
+1. Urban Density Score — based on building count and footprint area within 10km
 2. Climate Anomaly Score — based on Z-score analysis of extreme weather events
-3. Seismic Risk Score — based on Gutenberg-Richter energy from earthquakes within 50km
-4. Fire Risk Score — based on FRP × confidence / distance for fires within 25km
-5. Flood Risk Score — based on GFMS pixel values and historical flood frequency
+3. Seismic Risk Score — based on Gutenberg-Richter energy from earthquakes within 200km (ST_DWithin)
+4. Fire Risk Score — based on FRP × confidence / distance for fires within 100km (ST_DWithin)
+5. Flood Risk Score — based on GFMS pixel values and historical flood frequency within 100km (ST_DWithin)
 6. Coastal Risk Score — based on elevation for coastal sites (< 50km from coast)
 
-All scores are normalized to [0, 1] using Min-Max scaling.
+All scores are normalized to [0, 1] using log1p + Min-Max scaling to prevent outlier compression.
 Composite score is calculated as weighted average per RISK_WEIGHTS.
 Risk levels: low (0-0.25), medium (0.25-0.50), high (0.50-0.75), critical (0.75-1.0)
 """
@@ -54,16 +54,43 @@ def validate_weights(weights: Dict[str, float]) -> bool:
     return True
 
 
+def _log_minmax_scale(df: pd.DataFrame, raw_col: str, score_col: str) -> pd.DataFrame:
+    """
+    Apply log1p transform then MinMax scaling to a raw column.
+    
+    This prevents outlier compression: raw values spanning orders of magnitude
+    (e.g. 100 to 48,000,000) get compressed to a manageable log range first,
+    then MinMax spreads them evenly across [0, 1].
+    
+    Args:
+        df: DataFrame containing the raw column
+        raw_col: Name of the raw value column
+        score_col: Name of the output score column
+        
+    Returns:
+        DataFrame with score_col added
+    """
+    if df[raw_col].max() == 0 or df[raw_col].isna().all():
+        df[score_col] = 0.0
+    else:
+        # log1p handles 0 values gracefully (log1p(0) = 0)
+        df['_log_raw'] = np.log1p(df[raw_col].astype(float))
+        scaler = MinMaxScaler()
+        df[score_col] = scaler.fit_transform(df[['_log_raw']])
+        df.drop(columns=['_log_raw'], inplace=True)
+    return df
+
+
 def compute_urban_density_score(session) -> pd.DataFrame:
     """
     Compute urban density score for each heritage site.
     
     Score is based on:
-    - Number of buildings within 5km buffer
-    - Total building footprint area within 5km
+    - Number of buildings within 10km buffer
+    - Total building footprint area within 10km
     
     Raw density = building_count + (total_area_m2 / 1000000)
-    Then normalized to [0, 1]
+    Then log1p + MinMax normalized to [0, 1]
     
     Args:
         session: SQLAlchemy database session
@@ -88,7 +115,7 @@ def compute_urban_density_score(session) -> pd.DataFrame:
             FROM unesco_risk.heritage_sites hs
             LEFT JOIN unesco_risk.urban_features uf 
                 ON uf.nearest_site_id = hs.id 
-                AND uf.distance_to_site_m <= 5000
+                AND uf.distance_to_site_m <= 10000
             GROUP BY hs.id
         )
         SELECT 
@@ -107,14 +134,7 @@ def compute_urban_density_score(session) -> pd.DataFrame:
         logger.warning("No urban density data found!")
         return pd.DataFrame(columns=['site_id', 'urban_density_raw', 'urban_density_score'])
     
-    # Handle cases where all values are 0 or NaN
-    if df['urban_density_raw'].max() == 0:
-        logger.warning("All urban density values are 0, setting all scores to 0")
-        df['urban_density_score'] = 0.0
-    else:
-        # Min-Max normalization
-        scaler = MinMaxScaler()
-        df['urban_density_score'] = scaler.fit_transform(df[['urban_density_raw']])
+    df = _log_minmax_scale(df, 'urban_density_raw', 'urban_density_score')
     
     logger.info(f"Urban density scores: min={df['urban_density_score'].min():.3f}, "
                 f"max={df['urban_density_score'].max():.3f}, "
@@ -196,14 +216,7 @@ def compute_climate_anomaly_score(session) -> pd.DataFrame:
         return pd.DataFrame(columns=['site_id', 'extreme_days', 'total_days', 
                                      'anomaly_ratio', 'climate_anomaly_score'])
     
-    # Handle cases where all values are 0 or NaN
-    if df['anomaly_ratio'].max() == 0:
-        logger.warning("All climate anomaly ratios are 0, setting all scores to 0")
-        df['climate_anomaly_score'] = 0.0
-    else:
-        # Min-Max normalization
-        scaler = MinMaxScaler()
-        df['climate_anomaly_score'] = scaler.fit_transform(df[['anomaly_ratio']])
+    df = _log_minmax_scale(df, 'anomaly_ratio', 'climate_anomaly_score')
     
     logger.info(f"Climate anomaly scores: min={df['climate_anomaly_score'].min():.3f}, "
                 f"max={df['climate_anomaly_score'].max():.3f}, "
@@ -217,9 +230,10 @@ def compute_seismic_risk_score(session) -> pd.DataFrame:
     Compute seismic risk score for each heritage site.
     
     Score is based on Gutenberg-Richter energy formula:
-    - For each earthquake within 50km: energy = 10^(1.5 * magnitude) / distance²
+    - Uses ST_DWithin to find ALL earthquakes within 200km of each site
+    - For each earthquake: energy = 10^(1.5 * magnitude) / distance²
     - Sum all energy contributions
-    - Then normalized to [0, 1]
+    - Then log1p + MinMax normalized to [0, 1]
     
     Args:
         session: SQLAlchemy database session
@@ -229,6 +243,8 @@ def compute_seismic_risk_score(session) -> pd.DataFrame:
     """
     logger.info("Computing seismic risk scores...")
     
+    # Use ST_DWithin for many-to-many: each site considers ALL earthquakes
+    # within 200km, not just events mapped as "nearest" to it
     query = text("""
         WITH earthquake_energy AS (
             SELECT 
@@ -236,12 +252,14 @@ def compute_seismic_risk_score(session) -> pd.DataFrame:
                 COUNT(ee.id) AS earthquake_count,
                 COALESCE(SUM(
                     POWER(10, 1.5 * ee.magnitude) / 
-                    POWER(GREATEST(ee.distance_to_site_km, 0.1), 2)
+                    POWER(GREATEST(
+                        ST_Distance(hs.geom::geography, ee.geom::geography) / 1000.0, 
+                        0.1
+                    ), 2)
                 ), 0) AS total_energy
             FROM unesco_risk.heritage_sites hs
             LEFT JOIN unesco_risk.earthquake_events ee 
-                ON ee.nearest_site_id = hs.id 
-                AND ee.distance_to_site_km <= 50
+                ON ST_DWithin(hs.geom::geography, ee.geom::geography, 200000)
             GROUP BY hs.id
         )
         SELECT 
@@ -259,14 +277,7 @@ def compute_seismic_risk_score(session) -> pd.DataFrame:
         logger.warning("No seismic risk data found!")
         return pd.DataFrame(columns=['site_id', 'earthquake_count', 'total_energy', 'seismic_risk_score'])
     
-    # Handle cases where all values are 0 or NaN
-    if df['total_energy'].max() == 0:
-        logger.warning("All seismic energy values are 0, setting all scores to 0")
-        df['seismic_risk_score'] = 0.0
-    else:
-        # Min-Max normalization
-        scaler = MinMaxScaler()
-        df['seismic_risk_score'] = scaler.fit_transform(df[['total_energy']])
+    df = _log_minmax_scale(df, 'total_energy', 'seismic_risk_score')
     
     logger.info(f"Seismic risk scores: min={df['seismic_risk_score'].min():.3f}, "
                 f"max={df['seismic_risk_score'].max():.3f}, "
@@ -280,9 +291,10 @@ def compute_fire_risk_score(session) -> pd.DataFrame:
     Compute fire risk score for each heritage site.
     
     Score is based on:
-    - For each fire within 25km: contribution = FRP × confidence / distance
+    - Uses ST_DWithin to find ALL fires within 100km of each site
+    - For each fire: contribution = FRP × confidence / distance
     - Sum all fire contributions
-    - Then normalized to [0, 1]
+    - Then log1p + MinMax normalized to [0, 1]
     
     Args:
         session: SQLAlchemy database session
@@ -292,6 +304,7 @@ def compute_fire_risk_score(session) -> pd.DataFrame:
     """
     logger.info("Computing fire risk scores...")
     
+    # Use ST_DWithin for many-to-many: each site considers ALL fires within 100km
     query = text("""
         WITH fire_risk AS (
             SELECT 
@@ -299,12 +312,14 @@ def compute_fire_risk_score(session) -> pd.DataFrame:
                 COUNT(fe.id) AS fire_count,
                 COALESCE(SUM(
                     fe.frp * (fe.confidence / 100.0) / 
-                    GREATEST(fe.distance_to_site_km, 0.1)
+                    GREATEST(
+                        ST_Distance(hs.geom::geography, fe.geom::geography) / 1000.0,
+                        0.1
+                    )
                 ), 0) AS total_fire_risk
             FROM unesco_risk.heritage_sites hs
             LEFT JOIN unesco_risk.fire_events fe 
-                ON fe.nearest_site_id = hs.id 
-                AND fe.distance_to_site_km <= 25
+                ON ST_DWithin(hs.geom::geography, fe.geom::geography, 100000)
             GROUP BY hs.id
         )
         SELECT 
@@ -322,14 +337,7 @@ def compute_fire_risk_score(session) -> pd.DataFrame:
         logger.warning("No fire risk data found!")
         return pd.DataFrame(columns=['site_id', 'fire_count', 'total_fire_risk', 'fire_risk_score'])
     
-    # Handle cases where all values are 0 or NaN
-    if df['total_fire_risk'].max() == 0:
-        logger.warning("All fire risk values are 0, setting all scores to 0")
-        df['fire_risk_score'] = 0.0
-    else:
-        # Min-Max normalization
-        scaler = MinMaxScaler()
-        df['fire_risk_score'] = scaler.fit_transform(df[['total_fire_risk']])
+    df = _log_minmax_scale(df, 'total_fire_risk', 'fire_risk_score')
     
     logger.info(f"Fire risk scores: min={df['fire_risk_score'].min():.3f}, "
                 f"max={df['fire_risk_score'].max():.3f}, "
@@ -356,16 +364,16 @@ def compute_flood_risk_score(session) -> pd.DataFrame:
     """
     logger.info("Computing flood risk scores...")
     
+    # Use ST_DWithin for many-to-many flood zone matching
     query = text("""
         WITH flood_risk AS (
             SELECT 
                 hs.id AS site_id,
                 COUNT(fz.id) AS flood_count,
-                COALESCE(AVG(fz.severity), 0) AS avg_severity
+                COALESCE(AVG(fz.flood_intensity), 0) AS avg_severity
             FROM unesco_risk.heritage_sites hs
             LEFT JOIN unesco_risk.flood_zones fz 
-                ON fz.nearest_site_id = hs.id 
-                AND fz.distance_to_site_km <= 50
+                ON ST_DWithin(hs.geom::geography, fz.geom::geography, 100000)
             GROUP BY hs.id
         )
         SELECT 
@@ -384,14 +392,7 @@ def compute_flood_risk_score(session) -> pd.DataFrame:
         logger.warning("No flood risk data found!")
         return pd.DataFrame(columns=['site_id', 'flood_count', 'avg_severity', 'flood_risk_score'])
     
-    # Handle cases where all values are 0 or NaN
-    if df['flood_risk_raw'].max() == 0:
-        logger.warning("All flood risk values are 0, setting all scores to 0")
-        df['flood_risk_score'] = 0.0
-    else:
-        # Min-Max normalization
-        scaler = MinMaxScaler()
-        df['flood_risk_score'] = scaler.fit_transform(df[['flood_risk_raw']])
+    df = _log_minmax_scale(df, 'flood_risk_raw', 'flood_risk_score')
     
     logger.info(f"Flood risk scores: min={df['flood_risk_score'].min():.3f}, "
                 f"max={df['flood_risk_score'].max():.3f}, "
@@ -423,12 +424,12 @@ def compute_coastal_risk_score(session) -> pd.DataFrame:
         FROM information_schema.columns 
         WHERE table_schema = 'unesco_risk' 
           AND table_name = 'heritage_sites' 
-          AND column_name IN ('elevation_m', 'coastal_risk');
+          AND column_name IN ('elevation_m', 'coastal_risk_score');
     """)
     
     existing_cols = pd.read_sql(check_query, session.bind)
     has_elevation = 'elevation_m' in existing_cols['column_name'].values
-    has_coastal = 'coastal_risk' in existing_cols['column_name'].values
+    has_coastal = 'coastal_risk_score' in existing_cols['column_name'].values
     
     if has_elevation and has_coastal:
         # Use existing elevation and coastal risk data
@@ -437,7 +438,7 @@ def compute_coastal_risk_score(session) -> pd.DataFrame:
                 id AS site_id,
                 COALESCE(elevation_m, 0) AS elevation_m,
                 (elevation_m IS NOT NULL AND elevation_m < 50) AS is_coastal,
-                COALESCE(coastal_risk, 0) AS coastal_risk_score
+                COALESCE(coastal_risk_score, 0) AS coastal_risk_score
             FROM unesco_risk.heritage_sites
             ORDER BY id;
         """)

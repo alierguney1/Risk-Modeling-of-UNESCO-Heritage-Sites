@@ -1677,6 +1677,11 @@ SELECT count(*) FROM earthquake_events WHERE nearest_site_id IS NOT NULL;
 SELECT AVG(distance_to_site_km) FROM earthquake_events WHERE nearest_site_id IS NOT NULL;
 ```
 
+> **Implementation Note (18 Feb 2026)**:  
+> - `spatial_join.py` tamamen PostGIS SQL'e taşındı (Python/GeoPandas sjoin'den). `CROSS JOIN LATERAL` + `<->` KNN operatörü kullanılıyor.  
+> - Eski Python sjoin'de `KeyError: 'id'` hatası vardı (sjoin kolon isimlerini değiştiriyor).  
+> - Tüm earthquake (6501) ve fire (1232) olaylarına `nearest_site_id` atandı — mesafe limiti kaldırıldı.
+
 ---
 
 ### ✅ Phase 6 — Risk Scoring Engine _(Days 16–20)_
@@ -1688,17 +1693,24 @@ SELECT AVG(distance_to_site_km) FROM earthquake_events WHERE nearest_site_id IS 
 | 6.1 | **Write `src/analysis/risk_scoring.py`** | Module skeleton with all scoring functions and `DEFAULT_WEIGHTS` | Python module |
 | 6.2 | **Implement `compute_urban_density_score()`** | Per-site: count buildings + sum footprint area within 5 km buffer → raw density value | Urban scores |
 | 6.3 | **Implement `compute_climate_anomaly_score()`** | Per-site: Z-score on daily temp_max + precip, count extreme days (temp > μ+2σ OR precip > μ+3σ), ratio extreme/total | Climate scores |
-| 6.4 | **Implement `compute_seismic_risk_score()`** | Per-site: earthquakes within 50 km, Gutenberg-Richter energy `10^(1.5*mag)` / distance² | Seismic scores |
-| 6.5 | **Implement `compute_fire_risk_score()`** | Per-site: fires within 25 km, `Σ(frp × confidence / distance)` | Fire scores |
-| 6.6 | **Implement `compute_flood_risk_score()`** | Per-site: GFMS pixel value + historical flood frequency | Flood scores |
+| 6.4 | **Implement `compute_seismic_risk_score()`** | Per-site: **ST_DWithin 200 km** (many-to-many), Gutenberg-Richter energy `10^(1.5*mag)` / distance² | Seismic scores |
+| 6.5 | **Implement `compute_fire_risk_score()`** | Per-site: **ST_DWithin 100 km** (many-to-many), `Σ(frp × confidence / distance)` | Fire scores |
+| 6.6 | **Implement `compute_flood_risk_score()`** | Per-site: **ST_DWithin 100 km**, GFMS pixel value + historical flood frequency | Flood scores |
 | 6.7 | **Implement `compute_coastal_risk_score()`** | Per-site: `max(0, 1 - elevation/10)` if coastal (< 50 km from coast), else 0 | Coastal scores |
-| 6.8 | **Implement Min-Max normalization** | `sklearn.preprocessing.MinMaxScaler` on each sub-score column → all values in [0, 1] | Normalized scores |
+| 6.8 | **Implement log1p + Min-Max normalization** | `np.log1p()` then `MinMaxScaler` — prevents outlier compression (e.g. seismic energy 100→48M) | Normalized scores |
 | 6.9 | **Implement `compute_composite_score()`** | Weighted average with `DEFAULT_WEIGHTS`, assign `risk_level` via `pd.cut()` (low/medium/high/critical) | Composite score |
 | 6.10 | **UPSERT to `risk_scores`** | Store all 6 sub-scores + composite + risk_level per site | Data in DB |
 | 6.11 | **Validate weight sum** | Assert `sum(RISK_WEIGHTS.values()) == 1.0` | Unit test |
 | 6.12 | **Spot-check known sites** | Venice (high flood + urban), Pompeii (seismic), Doñana (fire) — do scores match expectations? | Manual validation |
 
 **Checkpoint**: `SELECT risk_level, count(*) FROM risk_scores GROUP BY risk_level;` shows distribution across 4 levels.
+
+> **Implementation Note (18 Feb 2026)**:  
+> - Scoring SQL'leri `nearest_site_id` (one-to-one) yerine `ST_DWithin` (many-to-many) kullanacak şekilde yeniden yazıldı.  
+>   Deprem kapsamı: 253 → 427 site (%68 artış).  
+> - Pure MinMax → **log1p + MinMax**: Outlier baskılama önlendi. Seismic mean 0.006 → 0.379.  
+> - Sonuç dağılımı: 536 low, 19 medium, 1 high (öncesi: 554 low, 2 medium).  
+> - Threshold'lar genişletildi: earthquake 50→200km, fire 25→100km, urban 5→10km, flood 50→100km.
 
 ---
 
@@ -1712,7 +1724,7 @@ SELECT AVG(distance_to_site_km) FROM earthquake_events WHERE nearest_site_id IS 
 | 7.2 | **Prepare feature matrix** | 6 sub-score columns → numpy array, handle NaN → 0 | Feature matrix X |
 | 7.3 | **Configure Isolation Forest** | `n_estimators=200`, `contamination=0.1`, `random_state=42`, `n_jobs=-1` | Model config |
 | 7.4 | **Fit & predict** | `decision_function()` → continuous anomaly score; `fit_predict()` → binary label (-1 = anomaly) | Anomaly labels |
-| 7.5 | **Override risk level** | Anomaly sites → `risk_level = "critical"` regardless of composite score | Updated risk levels |
+| 7.5 | **Flag anomalies** | Anomaly sites → `is_anomaly = TRUE` (risk_level korunur, override kaldırıldı) | Anomaly flags |
 | 7.6 | **Update `risk_scores` table** | Set `isolation_forest_score` and `is_anomaly` columns | DB updated |
 | 7.7 | **Write `src/analysis/density_analysis.py`** | Implement `compute_urban_kde()` with `sklearn.neighbors.KernelDensity` | Python module |
 | 7.8 | **Configure KDE** | `bandwidth=1000` (meters in EPSG:3035), Gaussian kernel | KDE config |
@@ -1721,9 +1733,13 @@ SELECT AVG(distance_to_site_km) FROM earthquake_events WHERE nearest_site_id IS 
 
 **Checkpoint**: `SELECT count(*) FROM risk_scores WHERE is_anomaly = TRUE;` → ~50 sites.
 
+> **Implementation Note (18 Feb 2026)**:  
+> - Anomali tespiti artık `risk_level`'ı "critical" olarak override ETMİYOR. Sadece `is_anomaly=TRUE` flag'i set ediliyor.  
+> - 56 anomali tespit edildi (%10.1) — `contamination=0.1` ile beklenen seviyede.
+
 ---
 
-### ⬜ Phase 8 — Folium Visualization _(Days 23–26)_
+### ✅ Phase 8 — Folium Visualization _(Days 23–26)_
 
 > **Goal**: Interactive HTML map with risk-colored markers, popups, heatmap, and layer controls.
 
@@ -1819,7 +1835,7 @@ SELECT AVG(distance_to_site_km) FROM earthquake_events WHERE nearest_site_id IS 
 | Phase 5 | ✅ | CRS Transformation & Spatial Join | Days 14–16 | **COMPLETE** - Module implemented, tested (16/16 tests pass) |
 | Phase 6 | ✅ | Risk Scoring Engine | Days 16–20 |
 | Phase 7 | ✅ | Anomaly Detection & Density Analysis | Days 20–23 |
-| Phase 8 | ⬜ | Folium Visualization | Days 23–26 |
+| Phase 8 | ✅ | Folium Visualization | Days 23–26 |
 | Phase 9 | ⬜ | Airflow DAG Integration | Days 26–30 |
 | Phase 10 | ⬜ | Testing & Quality Assurance | Days 30–35 |
 
