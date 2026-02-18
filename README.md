@@ -86,7 +86,7 @@ psql -U postgres -d unesco_risk -c "SELECT COUNT(*) FROM unesco_risk.heritage_si
 
 ## 📊 Current Status
 
-**Phase 3 COMPLETED** ✅ - UNESCO Heritage Sites ETL
+**Phase 8 ENHANCED** ✅ - Modern Interactive Dashboard + Legacy Folium
 
 See [STATUS.md](./STATUS.md) for detailed progress tracking and testing instructions.
 
@@ -100,9 +100,31 @@ See [STATUS.md](./STATUS.md) for detailed progress tracking and testing instruct
 | Phase 5 | ⬜ | CRS Transformation & Spatial Join |
 | Phase 6 | ⬜ | Risk Scoring Engine |
 | Phase 7 | ⬜ | Anomaly Detection |
-| Phase 8 | ⬜ | Folium Visualization |
+| **Phase 8** | ✅ | **Modern Interactive Dashboard** |
 | Phase 9 | ⬜ | Airflow DAG Integration |
 | Phase 10 | ⬜ | Testing & QA |
+
+## 🎨 Interactive Dashboard
+
+**NEW!** We now have a stunning, modern interactive dashboard powered by Plotly Dash:
+
+```bash
+# Launch the interactive dashboard
+python run_dashboard.py
+```
+
+**Features:**
+- 🗺️ Interactive Mapbox visualization with GPU acceleration
+- 🌍 3D globe view with orthographic projection
+- 🎨 Multiple map styles (Dark, Satellite, Light, Outdoors)
+- 🔍 Real-time filtering by risk level, country, category
+- 📊 Live analytics charts and statistics
+- ⚡ Responsive Bootstrap UI design
+- 🎯 Anomaly detection highlighting
+
+**Documentation**: See [docs/DASHBOARD_GUIDE.md](./docs/DASHBOARD_GUIDE.md) for complete guide.
+
+**Legacy Folium**: The original static Folium map is preserved as `folium_map_legacy.py`
 
 ## 📁 Project Structure
 
