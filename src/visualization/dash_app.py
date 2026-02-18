@@ -67,12 +67,106 @@ def load_site_risk_data() -> pd.DataFrame:
     return df
 
 
+def generate_demo_data():
+    """Generate sample data for demo/testing when database is not available."""
+    np.random.seed(42)
+    
+    # Famous UNESCO sites across Europe with realistic coordinates
+    demo_sites = [
+        {"name": "Acropolis, Athens", "country": "Greece", "lat": 37.9715, "lon": 23.7267, "category": "Cultural"},
+        {"name": "Colosseum", "country": "Italy", "lat": 41.8902, "lon": 12.4922, "category": "Cultural"},
+        {"name": "Eiffel Tower", "country": "France", "lat": 48.8584, "lon": 2.2945, "category": "Cultural"},
+        {"name": "Tower of London", "country": "United Kingdom", "lat": 51.5081, "lon": -0.0759, "category": "Cultural"},
+        {"name": "Alhambra", "country": "Spain", "lat": 37.1773, "lon": -3.5889, "category": "Cultural"},
+        {"name": "Stonehenge", "country": "United Kingdom", "lat": 51.1789, "lon": -1.8262, "category": "Cultural"},
+        {"name": "Mont-Saint-Michel", "country": "France", "lat": 48.6361, "lon": -1.5115, "category": "Cultural"},
+        {"name": "Sagrada Familia", "country": "Spain", "lat": 41.4036, "lon": 2.1744, "category": "Cultural"},
+        {"name": "Venice and its Lagoon", "country": "Italy", "lat": 45.4408, "lon": 12.3155, "category": "Cultural"},
+        {"name": "Historic Centre of Prague", "country": "Czech Republic", "lat": 50.0755, "lon": 14.4378, "category": "Cultural"},
+        {"name": "Historic Centre of Vienna", "country": "Austria", "lat": 48.2082, "lon": 16.3738, "category": "Cultural"},
+        {"name": "Auschwitz Birkenau", "country": "Poland", "lat": 50.0270, "lon": 19.2031, "category": "Cultural"},
+        {"name": "Meteora", "country": "Greece", "lat": 39.7217, "lon": 21.6306, "category": "Mixed"},
+        {"name": "Plitvice Lakes", "country": "Croatia", "lat": 44.8654, "lon": 15.5820, "category": "Natural"},
+        {"name": "Cinque Terre", "country": "Italy", "lat": 44.1270, "lon": 9.7220, "category": "Cultural"},
+        {"name": "Wieliczka Salt Mine", "country": "Poland", "lat": 49.9837, "lon": 20.0561, "category": "Cultural"},
+        {"name": "Schönbrunn Palace", "country": "Austria", "lat": 48.1847, "lon": 16.3120, "category": "Cultural"},
+        {"name": "Kremlin and Red Square", "country": "Russia", "lat": 55.7520, "lon": 37.6175, "category": "Cultural"},
+        {"name": "Neuschwanstein Castle", "country": "Germany", "lat": 47.5576, "lon": 10.7498, "category": "Cultural"},
+        {"name": "Giant's Causeway", "country": "United Kingdom", "lat": 55.2408, "lon": -6.5116, "category": "Natural"},
+        {"name": "Dubrovnik Old City", "country": "Croatia", "lat": 42.6419, "lon": 18.1081, "category": "Cultural"},
+        {"name": "Amalfi Coast", "country": "Italy", "lat": 40.6340, "lon": 14.6027, "category": "Cultural"},
+        {"name": "Buda Castle", "country": "Hungary", "lat": 47.4966, "lon": 19.0395, "category": "Cultural"},
+        {"name": "Palace of Versailles", "country": "France", "lat": 48.8049, "lon": 2.1204, "category": "Cultural"},
+        {"name": "Chartres Cathedral", "country": "France", "lat": 48.4474, "lon": 1.4879, "category": "Cultural"},
+        {"name": "Rila Monastery", "country": "Bulgaria", "lat": 42.1334, "lon": 23.3403, "category": "Cultural"},
+        {"name": "Hagia Sophia", "country": "Turkey", "lat": 41.0086, "lon": 28.9802, "category": "Cultural"},
+        {"name": "Cappadocia", "country": "Turkey", "lat": 38.6431, "lon": 34.8289, "category": "Mixed"},
+        {"name": "Dolomites", "country": "Italy", "lat": 46.4102, "lon": 11.8440, "category": "Natural"},
+        {"name": "Swiss Alps", "country": "Switzerland", "lat": 46.5197, "lon": 8.3086, "category": "Natural"},
+    ]
+    
+    sites_data = []
+    for i, site in enumerate(demo_sites):
+        # Generate realistic risk scores
+        base_risk = np.random.random()
+        
+        # Create correlated risk factors
+        urban = max(0, min(1, base_risk + np.random.normal(0, 0.15)))
+        climate = max(0, min(1, base_risk + np.random.normal(0, 0.15)))
+        seismic = max(0, min(1, 0.7 if site['country'] in ['Italy', 'Greece', 'Turkey'] else np.random.random() * 0.4))
+        fire = max(0, min(1, 0.6 if site['country'] in ['Spain', 'Greece', 'Turkey'] else np.random.random() * 0.5))
+        flood = max(0, min(1, np.random.random() * 0.6))
+        coastal = max(0, min(1, 0.7 if 'Coast' in site['name'] or 'Venice' in site['name'] else np.random.random() * 0.4))
+        
+        composite = (urban * 0.25 + climate * 0.20 + seismic * 0.20 + 
+                    fire * 0.15 + flood * 0.10 + coastal * 0.10)
+        
+        # Determine risk level
+        if composite >= 0.8:
+            risk_level = 'critical'
+        elif composite >= 0.6:
+            risk_level = 'high'
+        elif composite >= 0.4:
+            risk_level = 'medium'
+        else:
+            risk_level = 'low'
+        
+        # Random anomaly detection (10% of sites)
+        is_anomaly = np.random.random() < 0.1
+        
+        sites_data.append({
+            'site_id': i + 1,
+            'whc_id': 1000 + i,
+            'name': site['name'],
+            'country': site['country'],
+            'category': site['category'],
+            'date_inscribed': int(1960 + np.random.random() * 60),
+            'in_danger': np.random.random() < 0.05,  # 5% in danger
+            'latitude': site['lat'],
+            'longitude': site['lon'],
+            'urban_density_score': urban,
+            'climate_anomaly_score': climate,
+            'seismic_risk_score': seismic,
+            'fire_risk_score': fire,
+            'flood_risk_score': flood,
+            'coastal_risk_score': coastal,
+            'composite_risk_score': composite,
+            'isolation_forest_score': np.random.normal(0, 1),
+            'is_anomaly': is_anomaly,
+            'risk_level': risk_level,
+        })
+    
+    return pd.DataFrame(sites_data)
+
+
 # Load data at startup
 try:
     df_sites = load_site_risk_data()
+    logger.info("✓ Loaded data from database")
 except Exception as e:
-    logger.error(f"Failed to load data: {e}")
-    df_sites = pd.DataFrame()
+    logger.warning(f"Database not available, using demo data: {e}")
+    df_sites = generate_demo_data()
+    logger.info("✓ Generated demo data with {} sites".format(len(df_sites)))
 
 # ---------------------------------------------------------------------------
 # App Configuration
@@ -262,15 +356,7 @@ Coastal Risk: {row['coastal_risk_score']:.2f}
                     "Risk: %{customdata[2]}",
                     "<extra></extra>",
                 ]
-            ),
-            marker=dict(
-                line=dict(
-                    width=filtered_df.apply(
-                        lambda row: 2 if row["is_anomaly"] else 0.5, axis=1
-                    ),
-                    color="white",
-                )
-            ),
+            )
         )
 
         # Set mapbox style
@@ -296,7 +382,7 @@ Coastal Risk: {row['coastal_risk_score']:.2f}
                 len=0.7,
                 bgcolor="rgba(0,0,0,0.7)",
                 tickfont=dict(color="white"),
-                titlefont=dict(color="white"),
+                title_font=dict(color="white"),
             ),
         )
 
@@ -669,7 +755,7 @@ def update_visualizations(
 def run_dashboard(host="127.0.0.1", port=8050, debug=False):
     """Run the Dash application."""
     logger.info(f"Starting dashboard at http://{host}:{port}")
-    app.run_server(host=host, port=port, debug=debug)
+    app.run(host=host, port=port, debug=debug)
 
 
 if __name__ == "__main__":
