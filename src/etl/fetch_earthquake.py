@@ -2,7 +2,7 @@
 ETL Module: Fetch Earthquake Data
 
 Retrieves earthquake events from USGS Earthquake Catalog API.
-Fetches European earthquakes (magnitude >= 3.0) from 2015-2025.
+Fetches global earthquakes (magnitude >= 3.0) from 2015-2025.
 
 API: https://earthquake.usgs.gov/fdsnws/event/1/
 
@@ -26,7 +26,7 @@ from config.settings import (
     EARTHQUAKE_MIN_MAGNITUDE,
     EARTHQUAKE_START_DATE,
     EARTHQUAKE_END_DATE,
-    EUROPE_BBOX,
+    GLOBAL_BBOX,
 )
 from src.db.connection import get_session, engine
 from src.db.models import EarthquakeEvent
@@ -46,7 +46,7 @@ def fetch_earthquakes_europe(
     bbox: Optional[Dict] = None
 ) -> Optional[gpd.GeoDataFrame]:
     """
-    Fetch earthquake events from USGS for Europe.
+    Fetch earthquake events from USGS globally.
     
     Args:
         min_magnitude: Minimum magnitude threshold
@@ -58,7 +58,7 @@ def fetch_earthquakes_europe(
         GeoDataFrame with earthquake events or None if error
     """
     if bbox is None:
-        bbox = EUROPE_BBOX
+        bbox = GLOBAL_BBOX
     
     try:
         # USGS API expects: minlatitude, maxlatitude, minlongitude, maxlongitude
@@ -376,7 +376,7 @@ def main():
             min_magnitude=args.min_mag,
             start_date=args.start_date,
             end_date=args.end_date,
-            bbox=EUROPE_BBOX
+            bbox=GLOBAL_BBOX
         )
         
         if gdf is None or gdf.empty:

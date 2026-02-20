@@ -2,7 +2,7 @@
 Central configuration for the UNESCO Heritage Sites Risk Modeling project.
 
 All constants: CRS codes, bounding box, buffer distances, risk weights,
-API URLs, European ISO country codes, and model parameters.
+API URLs, and model parameters.
 """
 
 import os
@@ -14,17 +14,20 @@ load_dotenv()
 # CRS Constants
 # ---------------------------------------------------------------------------
 SRC_CRS = 4326          # WGS84 — storage & API communication
-PROJ_CRS = 3035         # ETRS89/LAEA Europe — metric computations
+PROJ_CRS = 3857         # Web Mercator — global web map projection (use local UTM for precise metric ops)
 
 # ---------------------------------------------------------------------------
-# Europe Bounding Box
+# Global Bounding Box
 # ---------------------------------------------------------------------------
-EUROPE_BBOX = {
-    "min_lat": 34,
-    "max_lat": 72,
-    "min_lon": -25,
-    "max_lon": 45,
+GLOBAL_BBOX = {
+    "min_lat": -90,
+    "max_lat": 90,
+    "min_lon": -180,
+    "max_lon": 180,
 }
+
+# Keep for backward compatibility
+EUROPE_BBOX = GLOBAL_BBOX
 
 # ---------------------------------------------------------------------------
 # Buffer Distances (meters)
@@ -159,18 +162,7 @@ FIRMS_API_KEY = os.getenv("FIRMS_API_KEY", "")
 OPENTOPO_API_KEY = os.getenv("OPENTOPO_API_KEY", "")
 
 # ---------------------------------------------------------------------------
-# European ISO Country Codes
-# ---------------------------------------------------------------------------
-EUROPE_ISO_CODES = {
-    "TR", "IT", "ES", "FR", "DE", "GR", "GB", "PT", "PL", "CZ",
-    "HR", "AT", "CH", "BE", "NL", "SE", "NO", "DK", "FI", "RO",
-    "BG", "HU", "SK", "SI", "RS", "BA", "ME", "MK", "AL", "CY",
-    "MT", "IS", "IE", "LU", "LT", "LV", "EE", "MD", "UA", "BY",
-    "GE", "AM", "AZ", "RU", "AD", "MC", "SM", "VA", "LI", "XK",
-}
-
-# ---------------------------------------------------------------------------
 # Output Paths
 # ---------------------------------------------------------------------------
 OUTPUT_MAP_DIR = "output/maps"
-DEFAULT_MAP_FILE = "output/maps/europe_risk_map.html"
+DEFAULT_MAP_FILE = "output/maps/global_risk_map.html"

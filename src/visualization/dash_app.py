@@ -71,38 +71,38 @@ def generate_demo_data():
     """Generate sample data for demo/testing when database is not available."""
     np.random.seed(42)
     
-    # Famous UNESCO sites across Europe with realistic coordinates
+    # Famous UNESCO sites from around the world with realistic coordinates
     demo_sites = [
         {"name": "Acropolis, Athens", "country": "Greece", "lat": 37.9715, "lon": 23.7267, "category": "Cultural"},
         {"name": "Colosseum", "country": "Italy", "lat": 41.8902, "lon": 12.4922, "category": "Cultural"},
         {"name": "Eiffel Tower", "country": "France", "lat": 48.8584, "lon": 2.2945, "category": "Cultural"},
         {"name": "Tower of London", "country": "United Kingdom", "lat": 51.5081, "lon": -0.0759, "category": "Cultural"},
         {"name": "Alhambra", "country": "Spain", "lat": 37.1773, "lon": -3.5889, "category": "Cultural"},
+        {"name": "Great Wall of China", "country": "China", "lat": 40.4319, "lon": 116.5704, "category": "Cultural"},
+        {"name": "Taj Mahal", "country": "India", "lat": 27.1751, "lon": 78.0421, "category": "Cultural"},
+        {"name": "Machu Picchu", "country": "Peru", "lat": -13.1631, "lon": -72.5450, "category": "Cultural"},
+        {"name": "Pyramids of Giza", "country": "Egypt", "lat": 29.9792, "lon": 31.1342, "category": "Cultural"},
+        {"name": "Angkor Wat", "country": "Cambodia", "lat": 13.4125, "lon": 103.8670, "category": "Cultural"},
         {"name": "Stonehenge", "country": "United Kingdom", "lat": 51.1789, "lon": -1.8262, "category": "Cultural"},
-        {"name": "Mont-Saint-Michel", "country": "France", "lat": 48.6361, "lon": -1.5115, "category": "Cultural"},
-        {"name": "Sagrada Familia", "country": "Spain", "lat": 41.4036, "lon": 2.1744, "category": "Cultural"},
         {"name": "Venice and its Lagoon", "country": "Italy", "lat": 45.4408, "lon": 12.3155, "category": "Cultural"},
         {"name": "Historic Centre of Prague", "country": "Czech Republic", "lat": 50.0755, "lon": 14.4378, "category": "Cultural"},
-        {"name": "Historic Centre of Vienna", "country": "Austria", "lat": 48.2082, "lon": 16.3738, "category": "Cultural"},
-        {"name": "Auschwitz Birkenau", "country": "Poland", "lat": 50.0270, "lon": 19.2031, "category": "Cultural"},
         {"name": "Meteora", "country": "Greece", "lat": 39.7217, "lon": 21.6306, "category": "Mixed"},
-        {"name": "Plitvice Lakes", "country": "Croatia", "lat": 44.8654, "lon": 15.5820, "category": "Natural"},
-        {"name": "Cinque Terre", "country": "Italy", "lat": 44.1270, "lon": 9.7220, "category": "Cultural"},
-        {"name": "Wieliczka Salt Mine", "country": "Poland", "lat": 49.9837, "lon": 20.0561, "category": "Cultural"},
-        {"name": "Schönbrunn Palace", "country": "Austria", "lat": 48.1847, "lon": 16.3120, "category": "Cultural"},
-        {"name": "Kremlin and Red Square", "country": "Russia", "lat": 55.7520, "lon": 37.6175, "category": "Cultural"},
-        {"name": "Neuschwanstein Castle", "country": "Germany", "lat": 47.5576, "lon": 10.7498, "category": "Cultural"},
-        {"name": "Giant's Causeway", "country": "United Kingdom", "lat": 55.2408, "lon": -6.5116, "category": "Natural"},
-        {"name": "Dubrovnik Old City", "country": "Croatia", "lat": 42.6419, "lon": 18.1081, "category": "Cultural"},
-        {"name": "Amalfi Coast", "country": "Italy", "lat": 40.6340, "lon": 14.6027, "category": "Cultural"},
-        {"name": "Buda Castle", "country": "Hungary", "lat": 47.4966, "lon": 19.0395, "category": "Cultural"},
-        {"name": "Palace of Versailles", "country": "France", "lat": 48.8049, "lon": 2.1204, "category": "Cultural"},
-        {"name": "Chartres Cathedral", "country": "France", "lat": 48.4474, "lon": 1.4879, "category": "Cultural"},
-        {"name": "Rila Monastery", "country": "Bulgaria", "lat": 42.1334, "lon": 23.3403, "category": "Cultural"},
         {"name": "Hagia Sophia", "country": "Turkey", "lat": 41.0086, "lon": 28.9802, "category": "Cultural"},
+        {"name": "Serengeti National Park", "country": "Tanzania", "lat": -2.3333, "lon": 34.8333, "category": "Natural"},
+        {"name": "Galápagos Islands", "country": "Ecuador", "lat": -0.6667, "lon": -90.5500, "category": "Natural"},
+        {"name": "Grand Canyon", "country": "United States", "lat": 36.1069, "lon": -112.1129, "category": "Natural"},
+        {"name": "Great Barrier Reef", "country": "Australia", "lat": -18.2871, "lon": 147.6992, "category": "Natural"},
+        {"name": "Amazon Rainforest (Central)", "country": "Brazil", "lat": -3.4653, "lon": -62.2159, "category": "Natural"},
+        {"name": "Petra", "country": "Jordan", "lat": 30.3285, "lon": 35.4444, "category": "Cultural"},
+        {"name": "Chichen Itza", "country": "Mexico", "lat": 20.6843, "lon": -88.5678, "category": "Cultural"},
+        {"name": "Kremlin and Red Square", "country": "Russia", "lat": 55.7520, "lon": 37.6175, "category": "Cultural"},
         {"name": "Cappadocia", "country": "Turkey", "lat": 38.6431, "lon": 34.8289, "category": "Mixed"},
         {"name": "Dolomites", "country": "Italy", "lat": 46.4102, "lon": 11.8440, "category": "Natural"},
-        {"name": "Swiss Alps", "country": "Switzerland", "lat": 46.5197, "lon": 8.3086, "category": "Natural"},
+        {"name": "Yellowstone", "country": "United States", "lat": 44.4280, "lon": -110.5885, "category": "Natural"},
+        {"name": "Ha Long Bay", "country": "Vietnam", "lat": 20.9101, "lon": 107.1839, "category": "Natural"},
+        {"name": "Mont-Saint-Michel", "country": "France", "lat": 48.6361, "lon": -1.5115, "category": "Cultural"},
+        {"name": "Hiroshima Peace Memorial", "country": "Japan", "lat": 34.3955, "lon": 132.4536, "category": "Cultural"},
+        {"name": "Easter Island", "country": "Chile", "lat": -27.1127, "lon": -109.3497, "category": "Cultural"},
     ]
     
     sites_data = []
@@ -306,8 +306,8 @@ Coastal Risk: {row['coastal_risk_score']:.2f}
             landcolor="rgb(30, 30, 30)",
             showocean=True,
             oceancolor="rgb(10, 10, 30)",
-            center=dict(lat=50, lon=10),
-            projection_scale=2.5,
+            center=dict(lat=20, lon=0),
+            projection_scale=1.5,
         )
 
         fig.update_layout(
@@ -341,8 +341,8 @@ Coastal Risk: {row['coastal_risk_score']:.2f}
             custom_data=["country", "category", "risk_level", "is_anomaly"],
             color_continuous_scale=create_risk_color_scale(),
             range_color=[0, 1],
-            zoom=3.5,
-            center={"lat": 50, "lon": 10},
+            zoom=1.5,
+            center={"lat": 20, "lon": 0},
             height=800,
         )
 
