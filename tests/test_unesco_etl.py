@@ -111,12 +111,11 @@ class TestUNESCOETL(unittest.TestCase):
         self.assertEqual(records[1]['whc_id'], 94)
     
     def test_filter_european_sites(self):
-        """Test European site filtering."""
-        european = filter_european_sites(self.sample_records)
+        """Test that filter_european_sites (legacy) returns all records in global scope."""
+        all_sites = filter_european_sites(self.sample_records)
         
-        # Should filter out Australia, keep Italy sites
-        self.assertEqual(len(european), 2)
-        self.assertTrue(all(r['whc_id'] in [91, 94] for r in european))
+        # Global scope: should return all sites including Australia
+        self.assertEqual(len(all_sites), 3)
     
     def test_validate_records(self):
         """Test record validation."""
