@@ -1,8 +1,8 @@
 """
 UNESCO World Heritage Sites ETL module.
 
-Fetches UNESCO World Heritage Sites data from the official API,
-filters for European sites, and stores them in PostGIS database.
+Fetches UNESCO World Heritage Sites data from the official API
+and stores them in PostGIS database.
 
 Supports both XML (primary) and JSON (fallback) endpoints.
 """
@@ -25,8 +25,6 @@ from sqlalchemy.dialects.postgresql import insert
 from config.settings import (
     UNESCO_XML_URL,
     UNESCO_JSON_URL,
-    EUROPE_ISO_CODES,
-    EUROPE_BBOX,
     SRC_CRS
 )
 from src.db.connection import get_session, get_engine
@@ -287,37 +285,17 @@ def parse_json_to_records(json_data: List[Dict]) -> List[Dict]:
 
 def filter_european_sites(records: List[Dict]) -> List[Dict]:
     """
-    Filter records to include only European heritage sites.
-    
+    Deprecated: Previously filtered to European sites only.
+    Now returns all records unchanged (global scope).
+
     Args:
         records: List of all site dictionaries
-        
+
     Returns:
-        List of European site dictionaries
+        All site dictionaries (no geographic filtering)
     """
-    european_sites = []
-    
-    for record in records:
-        # Check ISO codes (can be comma-separated for transboundary sites)
-        iso_codes = record.get('iso_code', '').split(',')
-        iso_codes = [code.strip().upper() for code in iso_codes if code.strip()]
-        
-        # Check if any ISO code is in European set
-        is_european_iso = any(code in EUROPE_ISO_CODES for code in iso_codes)
-        
-        # Also check geographic bounds as backup
-        lat = record.get('latitude', 0)
-        lon = record.get('longitude', 0)
-        is_in_bbox = (
-            EUROPE_BBOX['min_lat'] <= lat <= EUROPE_BBOX['max_lat'] and
-            EUROPE_BBOX['min_lon'] <= lon <= EUROPE_BBOX['max_lon']
-        )
-        
-        if is_european_iso or is_in_bbox:
-            european_sites.append(record)
-    
-    logger.info(f"✓ Filtered to {len(european_sites)} European sites (from {len(records)} total)")
-    return european_sites
+    logger.info(f"Global scope: returning all {len(records)} sites")
+    return records
 
 
 def validate_records(records: List[Dict]) -> Tuple[List[Dict], Dict]:
@@ -337,7 +315,6 @@ def validate_records(records: List[Dict]) -> Tuple[List[Dict], Dict]:
         'duplicate_whc_ids': [],
         'invalid_geometries': [],
         'invalid_categories': [],
-        'out_of_bounds': [],
     }
     
     valid_records = []
@@ -362,12 +339,6 @@ def validate_records(records: List[Dict]) -> Tuple[List[Dict], Dict]:
         if not (-90 <= lat <= 90 and -180 <= lon <= 180):
             validation_report['invalid_geometries'].append(whc_id)
             is_valid = False
-        
-        # Check bounds for European sites
-        if not (EUROPE_BBOX['min_lat'] <= lat <= EUROPE_BBOX['max_lat'] and
-                EUROPE_BBOX['min_lon'] <= lon <= EUROPE_BBOX['max_lon']):
-            # This is a warning, not necessarily invalid
-            validation_report['out_of_bounds'].append(whc_id)
         
         # Validate category
         category = record.get('category')
@@ -502,13 +473,13 @@ def upsert_to_database(gdf: gpd.GeoDataFrame, dry_run: bool = False) -> int:
     return count
 
 
-def fetch_unesco_sites(europe_only: bool = True, dry_run: bool = False, 
+def fetch_unesco_sites(europe_only: bool = False, dry_run: bool = False, 
                        use_json: bool = False) -> Optional[gpd.GeoDataFrame]:
     """
     Main function to fetch, parse, and store UNESCO heritage sites.
     
     Args:
-        europe_only: If True, filter to European sites only
+        europe_only: Deprecated. If True, applies legacy Europe filter (not recommended).
         dry_run: If True, don't write to database
         use_json: If True, use JSON endpoint instead of XML
         
@@ -516,7 +487,7 @@ def fetch_unesco_sites(europe_only: bool = True, dry_run: bool = False,
         GeoDataFrame of heritage sites if successful, None otherwise
     """
     logger.info("=" * 70)
-    logger.info("UNESCO Heritage Sites ETL Process")
+    logger.info("UNESCO Heritage Sites ETL Process (Global Scope)")
     logger.info("=" * 70)
     
     # Step 1: Fetch data
@@ -541,7 +512,7 @@ def fetch_unesco_sites(europe_only: bool = True, dry_run: bool = False,
         logger.error("✗ Failed to fetch any data")
         return None
     
-    # Step 2: Filter to Europe if requested
+    # Step 2: Filter to Europe if requested (legacy, not recommended)
     if europe_only:
         records = filter_european_sites(records)
     
@@ -556,8 +527,6 @@ def fetch_unesco_sites(europe_only: bool = True, dry_run: bool = False,
         logger.warning(f"Duplicate WHC IDs: {validation_report['duplicate_whc_ids'][:5]}")
     if validation_report['invalid_geometries']:
         logger.warning(f"Invalid geometries: {validation_report['invalid_geometries'][:5]}")
-    if validation_report['out_of_bounds']:
-        logger.info(f"Out of Europe bounds: {len(validation_report['out_of_bounds'])} sites")
     
     if not valid_records:
         logger.error("✗ No valid records found")
@@ -594,12 +563,12 @@ def fetch_unesco_sites(europe_only: bool = True, dry_run: bool = False,
 def main():
     """CLI entry point."""
     parser = argparse.ArgumentParser(
-        description='Fetch and store UNESCO World Heritage Sites data'
+        description='Fetch and store UNESCO World Heritage Sites data (global scope)'
     )
     parser.add_argument(
-        '--all', 
+        '--europe-only', 
         action='store_true',
-        help='Fetch all sites worldwide (default: Europe only)'
+        help='Fetch European sites only (legacy mode, not recommended)'
     )
     parser.add_argument(
         '--dry-run',
@@ -624,7 +593,7 @@ def main():
     
     try:
         gdf = fetch_unesco_sites(
-            europe_only=not args.all,
+            europe_only=args.europe_only,
             dry_run=args.dry_run,
             use_json=args.json
         )

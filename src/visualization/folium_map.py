@@ -1,7 +1,7 @@
 """
 Phase 8: Folium Visualization Module.
 
-Generates an interactive risk map of UNESCO Heritage Sites in Europe
+Generates an interactive risk map of UNESCO Heritage Sites worldwide
 using Folium with:
 - Risk-colored CircleMarkers (critical=red, high=orange, medium=yellow, low=green)
 - Popup HTML with site details, sub-scores, and anomaly flags
@@ -33,8 +33,8 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-MAP_CENTER = [50, 10]  # Center of Europe
-MAP_ZOOM = 4
+MAP_CENTER = [20, 0]   # Global center
+MAP_ZOOM = 2
 MAP_TILES = "CartoDB positron"
 
 MARKER_RADIUS_NORMAL = 5

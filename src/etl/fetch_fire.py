@@ -27,7 +27,7 @@ from config.settings import (
     FIRMS_API_KEY,
     FIRMS_DEFAULT_SOURCE,
     FIRMS_DEFAULT_DAYS,
-    EUROPE_BBOX,
+    GLOBAL_BBOX,
 )
 from src.db.connection import get_session, engine
 from src.db.models import FireEvent
@@ -95,7 +95,7 @@ def fetch_firms_fire(
         GeoDataFrame with fire events or None if error
     """
     if bbox is None:
-        bbox = EUROPE_BBOX
+        bbox = GLOBAL_BBOX
     
     if days > 10:
         logger.warning("FIRMS NRT API only provides last 10 days. Setting days=10")

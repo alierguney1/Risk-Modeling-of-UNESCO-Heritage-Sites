@@ -1,8 +1,8 @@
 # Risk Modeling of UNESCO Heritage Sites
 
-> **Multi-Source Spatial Data Analysis for European UNESCO World Heritage Sites**
+> **Multi-Source Spatial Data Analysis for UNESCO World Heritage Sites Worldwide**
 
-A comprehensive risk assessment system that integrates climate data, seismic activity, urban sprawl, and environmental hazards to evaluate and visualize risks to UNESCO World Heritage Sites across Europe.
+A comprehensive risk assessment system that integrates climate data, seismic activity, urban sprawl, and environmental hazards to evaluate and visualize risks to UNESCO World Heritage Sites across the globe.
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-blue.svg)](https://www.postgresql.org/)
@@ -10,7 +10,7 @@ A comprehensive risk assessment system that integrates climate data, seismic act
 
 ## 📋 Project Overview
 
-This project analyzes ~500+ UNESCO World Heritage Sites in Europe by combining multiple data sources:
+This project analyzes all ~1,100+ UNESCO World Heritage Sites worldwide by combining multiple data sources:
 
 - **UNESCO Sites**: Official World Heritage Centre data
 - **Climate Data**: Open-Meteo & NASA POWER historical and forecast data
@@ -26,7 +26,7 @@ This project analyzes ~500+ UNESCO World Heritage Sites in Europe by combining m
 ✅ **Spatial Analysis** - PostGIS-powered geographic computations  
 ✅ **Risk Scoring** - Multi-variate risk model with weighted factors  
 ✅ **Anomaly Detection** - Isolation Forest ML model for outlier identification  
-✅ **Interactive Visualization** - Folium-based risk maps  
+✅ **Interactive Visualization** - Folium-based global risk maps  
 ✅ **Workflow Orchestration** - Apache Airflow DAG for scheduling
 
 ## 🚀 Quick Start
@@ -77,7 +77,7 @@ python -c "from src.db.connection import test_connection; test_connection()"
 ### Running the ETL Pipeline
 
 ```bash
-# Fetch UNESCO heritage sites (Phase 3 - COMPLETED)
+# Fetch all UNESCO heritage sites globally (Phase 3)
 python -m src.etl.fetch_unesco --verbose
 
 # Check results
@@ -86,9 +86,7 @@ psql -U postgres -d unesco_risk -c "SELECT COUNT(*) FROM unesco_risk.heritage_si
 
 ## 📊 Current Status
 
-**Phase 8 ENHANCED** ✅ - Modern Interactive Dashboard + Legacy Folium
-
-See [STATUS.md](./STATUS.md) for detailed progress tracking and testing instructions.
+**Phase 8** ✅ - Interactive Folium Risk Map
 
 | Phase | Status | Description |
 |-------|--------|-------------|
@@ -100,31 +98,30 @@ See [STATUS.md](./STATUS.md) for detailed progress tracking and testing instruct
 | Phase 5 | ⬜ | CRS Transformation & Spatial Join |
 | Phase 6 | ⬜ | Risk Scoring Engine |
 | Phase 7 | ⬜ | Anomaly Detection |
-| **Phase 8** | ✅ | **Modern Interactive Dashboard** |
+| **Phase 8** | ✅ | **Interactive Folium Risk Map** |
 | Phase 9 | ⬜ | Airflow DAG Integration |
 | Phase 10 | ⬜ | Testing & QA |
 
-## 🎨 Interactive Dashboard
-
-**NEW!** We now have a stunning, modern interactive dashboard powered by Plotly Dash:
+## 🗺️ Interactive Risk Map
 
 ```bash
-# Launch the interactive dashboard
+# Generate and open the interactive risk map
 python run_dashboard.py
+
+# Generate without opening browser
+python run_dashboard.py --no-browser
+
+# Custom output path
+python run_dashboard.py --output output/maps/my_map.html
 ```
 
 **Features:**
-- 🗺️ Interactive Mapbox visualization with GPU acceleration
-- 🌍 3D globe view with orthographic projection
-- 🎨 Multiple map styles (Dark, Satellite, Light, Outdoors)
-- 🔍 Real-time filtering by risk level, country, category
-- 📊 Live analytics charts and statistics
-- ⚡ Responsive Bootstrap UI design
-- 🎯 Anomaly detection highlighting
-
-**Documentation**: See [docs/DASHBOARD_GUIDE.md](./docs/DASHBOARD_GUIDE.md) for complete guide.
-
-**Legacy Folium**: The original static Folium map is preserved as `folium_map_legacy.py`
+- 🌍 Global world map with all UNESCO sites
+- 🎨 Risk-colored markers (critical=red, high=orange, medium=yellow, low=green)
+- 🔥 HeatMap overlay weighted by composite risk score
+- 📍 MarkerCluster for dense regions
+- 💬 Interactive popups with full risk breakdown
+- ⚠️ Anomaly highlighting
 
 ## 📁 Project Structure
 
@@ -141,13 +138,21 @@ Risk-Modeling-of-UNESCO-Heritage-Sites/
 │   │   ├── connection.py
 │   │   └── models.py
 │   ├── etl/             # Data extraction modules
-│   │   └── fetch_unesco.py  ✅ Phase 3
+│   │   ├── fetch_unesco.py      ✅ Phase 3
+│   │   ├── fetch_earthquake.py
+│   │   ├── fetch_fire.py
+│   │   ├── fetch_flood.py
+│   │   ├── fetch_climate.py
+│   │   ├── fetch_elevation.py
+│   │   └── fetch_osm.py
 │   ├── analysis/        # Risk scoring and analytics
+│   │   ├── risk_scoring.py
+│   │   ├── anomaly_detection.py
+│   │   └── density_analysis.py
 │   └── visualization/   # Map generation
+│       └── folium_map.py        ✅ Phase 8
+├── dags/                # Airflow DAG definitions
 ├── tests/               # Unit tests
-│   ├── test_db.py
-│   └── test_unesco_etl.py  ✅ Phase 3
-├── STATUS.md           # Detailed status tracking
 ├── PLAN.MD             # Technical architecture plan
 └── README.md           # This file
 ```
@@ -164,14 +169,6 @@ pytest tests/test_unesco_etl.py -v
 # Run with coverage
 pytest --cov=src tests/
 ```
-
-## 📖 Documentation
-
-- **[PLAN.MD](./PLAN.MD)** - Detailed technical architecture and implementation plan
-- **[STATUS.md](./STATUS.md)** - Application status tracking with test commands (Turkish/English)
-- **[docs/PHASE5_GUIDE.md](./docs/PHASE5_GUIDE.md)** - Phase 5: CRS Transformation & Spatial Join usage guide
-- **[docs/PHASE5_SUMMARY.md](./docs/PHASE5_SUMMARY.md)** - Phase 5 implementation summary
-- **[.env.example](./.env.example)** - Environment variables template
 
 ## 🛠 Technology Stack
 
@@ -195,7 +192,7 @@ This project is open source. See LICENSE file for details.
 
 ## 👥 Contributing
 
-Contributions are welcome! Please see [STATUS.md](./STATUS.md) for current development priorities.
+Contributions are welcome! Please open a GitHub issue to discuss changes.
 
 ## 📧 Contact
 
@@ -203,6 +200,6 @@ For questions or issues, please open a GitHub issue.
 
 ---
 
-**Last Updated**: February 17, 2026  
-**Current Phase**: Phase 5 Complete - CRS Transformation & Spatial Join  
-**Status**: ✅ Ready for Phase 6 (Risk Scoring Engine)
+**Last Updated**: February 2026  
+**Current Phase**: Phase 8 Complete - Global Interactive Risk Map  
+**Status**: ✅ Ready for Phase 9 (Airflow DAG Integration)
